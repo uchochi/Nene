@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-n8n-dark-4;
+  }
+  body {
+    @apply bg-n8n-dark text-white font-sans antialiased;
+    overscroll-behavior: none;
+  }
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-n8n-dark-4 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-n8n-gray-dark;
+  }
+}
+
+@layer components {
+  .node-card {
+    @apply bg-n8n-dark-3 border border-n8n-dark-4 rounded-lg p-3 cursor-grab
+           hover:border-n8n-gray-dark transition-colors duration-150
+           flex items-center gap-3 text-sm font-medium;
+  }
+  .node-card:active {
+    @apply cursor-grabbing;
+  }
+  .btn-primary {
+    @apply bg-n8n-red hover:bg-n8n-red-hover text-white font-medium
+           px-4 py-2 rounded-lg transition-colors duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply bg-n8n-dark-4 hover:bg-n8n-dark-5 text-white font-medium
+           px-4 py-2 rounded-lg transition-colors duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .panel {
+    @apply bg-n8n-dark-2 border border-n8n-dark-4 rounded-xl;
+  }
+  .input-field {
+    @apply bg-n8n-dark-4 border border-n8n-dark-5 rounded-lg px-3 py-2
+           text-white text-sm placeholder:text-n8n-gray
+           focus:outline-none focus:border-n8n-orange transition-colors duration-150 w-full;
+  }
+  .select-field {
+    @apply input-field appearance-none cursor-pointer;
+  }
+  .textarea-field {
+    @apply input-field resize-none min-h-[100px];
+  }
+  .label {
+    @apply text-xs text-n8n-gray-light font-medium uppercase tracking-wider mb-1.5 block;
+  }
+}
+
+.react-flow__node {
+  @apply !bg-transparent;
+}
+.react-flow__handle {
+  @apply !bg-n8n-orange !border-2 !border-n8n-dark !w-3 !h-3;
+}
+.react-flow__handle-connecting {
+  @apply !bg-n8n-red;
+}
+.react-flow__connection-line {
+  @apply !stroke-n8n-orange;
+}
+.react-flow__edge-path {
+  @apply !stroke-n8n-gray-light !stroke-2;
+}
+.react-flow__edge.selected .react-flow__edge-path {
+  @apply !stroke-n8n-orange;
+}
+.react-flow__controls {
+  @apply !bg-n8n-dark-3 !border-n8n-dark-4 !rounded-lg !overflow-hidden;
+}
+.react-flow__controls-button {
+  @apply !bg-n8n-dark-3 !text-white !border-n8n-dark-4;
+  fill: white !important;
+}
+.react-flow__minimap {
+  @apply !bg-n8n-dark-3 !border-n8n-dark-4 !rounded-lg !overflow-hidden;
+}
+.react-flow__attribution {
+  @apply !hidden;
+}
