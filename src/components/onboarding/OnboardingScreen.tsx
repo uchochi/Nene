@@ -1,5 +1,5 @@
 import { useWorkflowStore } from '../../store/workflowStore'
-import { FlaskConical, ArrowRight } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 
 export function OnboardingScreen() {
   const setShowOnboarding = useWorkflowStore(s => s.setShowOnboarding)
@@ -15,8 +15,8 @@ export function OnboardingScreen() {
       <div className="max-w-lg w-full mx-4 my-8">
         {/* Logo & Title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-n8n-red/10 mb-4">
-            <FlaskConical size={32} className="text-n8n-red" />
+          <div className="inline-flex items-center justify-center w-20 h-20 mb-4">
+            <img src="/logo.png" alt="n8n Dataset" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">n8n Dataset</h1>
           <p className="text-n8n-gray-light text-sm">

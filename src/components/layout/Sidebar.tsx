@@ -1,6 +1,6 @@
 import { NodePalette } from '../nodes/NodePalette'
 import { useWorkflowStore, type NodeType } from '../../store/workflowStore'
-import { FlaskConical, History, Settings, X } from 'lucide-react'
+import { History, Settings, X } from 'lucide-react'
 
 interface SidebarProps {
   isOpen: boolean
@@ -27,7 +27,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     <div className="w-64 bg-n8n-dark-2 border-r border-n8n-dark-4 flex flex-col h-full overflow-hidden flex-shrink-0">
       <div className="flex items-center justify-between px-4 py-3 border-b border-n8n-dark-4">
         <div className="flex items-center gap-2">
-          <FlaskConical size={18} className="text-n8n-red" />
+          <img src="/logo.png" alt="n8n Dataset" className="w-6 h-6" />
           <span className="font-bold text-sm">n8n Dataset</span>
         </div>
         <button
