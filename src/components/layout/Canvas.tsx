@@ -27,7 +27,12 @@ export function Canvas() {
   const onNodeClick = useCallback((_: unknown, node: { id: string }) => {
     selectNode(node.id)
     if (isTMA()) {
-      try { window.Telegram?.WebApp.HapticFeedback.selectionChanged() } catch {}
+      try {
+        const tg = window.Telegram?.WebApp as Record<string, unknown> | undefined
+        const hf = tg?.HapticFeedback as Record<string, unknown> | undefined
+        const fn = hf?.selectionChanged as (() => void) | undefined
+        fn?.()
+      } catch { /* ignore */ }
     }
   }, [selectNode])
 
