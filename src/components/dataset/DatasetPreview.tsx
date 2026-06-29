@@ -1,7 +1,6 @@
 import { useWorkflowStore } from '../../store/workflowStore'
-import { validateJSONL, getStatistics } from '../../utils/jsonl'
-import { Download, Code, BarChart3 } from 'lucide-react'
-import { downloadJSONL } from '../../utils/jsonl'
+import { validateJSONL, getStatistics, downloadJSONL } from '../../utils/jsonl'
+import { Download, BarChart3 } from 'lucide-react'
 import { isTMA, hapticFeedback } from '../../utils/tma'
 import { useState } from 'react'
 
@@ -13,7 +12,7 @@ export function DatasetPreview() {
 
   if (!datasetResult) return null
 
-  const { entries, errors } = validateJSONL(datasetResult)
+  const { entries } = validateJSONL(datasetResult)
   const stats = getStatistics(entries)
 
   const handleDownload = () => {

@@ -1,5 +1,5 @@
 import { useWorkflowStore } from '../../store/workflowStore'
-import { Play, Save, Download, Trash2, Menu, FileDown } from 'lucide-react'
+import { Play, Save, Trash2, Menu, FileDown } from 'lucide-react'
 import { downloadJSONL } from '../../utils/jsonl'
 import { isTMA, hapticFeedback } from '../../utils/tma'
 
