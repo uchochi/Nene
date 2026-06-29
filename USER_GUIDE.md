@@ -207,24 +207,55 @@ The AI will analyze the Spanish bee joke and return:
 
 ---
 
-## 5. Example 4: Full Dataset Pipeline
+## 5. Example 4: Full Pipeline — Every Node in Action
 
-Combine everything into a production-grade pipeline.
+This example uses **all 7 node types** from the sidebar in a single workflow: Input, Format, Tag & Categorize, Group, Translate, AI Transform, Output.
 
-### Step 1: Build the complete pipeline
+### The Pipeline
 
 ```
-[Input] → [Format] → [Tag & Categorize] → [Group] → [AI Transform] → [Output]
+[Input] → [Format] → [Tag & Categorize] → [Group] → [Translate] → [AI Transform] → [Output]
 ```
 
-### Step 2: Configure Input (Mix of content types)
+### Step 1: Add & Connect All Nodes
 
-Paste this content — multiple jokes in different formats:
+Click each node in the sidebar in this order. Then connect them by dragging from each node's **bottom orange dot** to the **top orange dot** of the next node:
+
+| Order | Node | Sidebar Icon | Color |
+|-------|------|-------------|-------|
+| 1st | Input | 📥 | Green |
+| 2nd | Format | 🔧 | Blue |
+| 3rd | Tag & Categorize | 🏷️ | Orange |
+| 4th | Group | 📂 | Purple |
+| 5th | Translate | 🌐 | Teal |
+| 6th | AI Transform | 🤖 | Pink |
+| 7th | Output | 📤 | Red |
+
+Your canvas should look like a chain of 7 connected blocks:
+
+```
+📥 → 🔧 → 🏷️ → 📂 → 🌐 → 🤖 → 📤
+```
+
+### Step 2: Configure Input Node
+
+Click the green **Input** node. In the config panel:
+
+- **Content Type:** `Plain Text`
+- **Content:** Paste this multilingual dataset:
 
 ```
 Type: Joke
 Language: en
 Why did the bicycle fall over? Because it was two-tired!
+
+Type: Joke
+Language: en
+Parallel lines have so much in common. It's a shame they'll never meet.
+
+Type: Joke
+Language: es
+¿Qué hace una abeja en el gimnasio? ¡Zum-ba!
 
 Type: Meme
 Language: es
@@ -233,58 +264,173 @@ Text: This is fine
 Caption: Este es mi nivel de estrés cada lunes
 
 Type: Joke
-Language: en
-Parallel lines have so much in common. It's a shame they'll never meet.
+Language: fr
+Pourquoi les plongeurs plongent-ils toujours en arrière ?
+Parce que sinon ils tombent dans le bateau.
+
+Type: Joke
+Language: fr
+Que fait une fraise sur un cheval ? Tagada tagada tagada !
 ```
 
-### Step 3: Configure Format
+### Step 3: Configure Format Node
+
+Click the blue **Format** node:
 
 - **Output Format:** `JSONL`
-- **Include Metadata:** ✓
+- **Include Metadata:** ✓ checked
 
-### Step 4: Configure Tag & Categorize
+This splits each line, wraps them in JSON objects, and assigns sequential IDs.
 
-Click the **Tag** node (orange). Set:
+### Step 4: Configure Tag & Categorize Node
 
-- **Categories:** `humor, wordplay, multilingual`
-- **Auto-tag content:** ✓
+Click the orange **Tag & Categorize** node:
 
-### Step 5: Configure Group
+- **Categories:** `humor, wordplay, pun, multilingual`
+- **Auto-tag content:** ✓ checked
 
-Click the **Group** node (purple). Set:
+This appends a `tags` array and assigns the categories you listed to every entry.
+
+### Step 5: Configure Group Node
+
+Click the purple **Group** node:
 
 - **Group By:** `language`
 
-### Step 6: Configure AI Transform
+This collects entries by their `language_code` field. All `en` entries go together, all `es` together, all `fr` together. Each group becomes an object with a `group` name, `count`, and `items` array.
+
+### Step 6: Configure Translate Node
+
+Click the teal **Translate** node:
+
+- **Target Languages:** `pt, it`
+- **Preserve humor mechanics:** ✓ checked
+
+This duplicates every entry for Portuguese and Italian. After this step, 6 entries become 18 (6 original × 3 language tags each: original + pt + it).
+
+### Step 7: Configure AI Transform Node
+
+Click the pink **AI Transform** node:
 
 - **AI Model:** `gpt-4o-mini`
-- **Custom Prompt** (try this):
+- **Custom Prompt:**
 
 ```
-Analyze each piece of content and extract:
-1. The humor mechanics at play
-2. The cultural context needed to understand it
-3. A Chain-of-Thought explanation of why it's funny
-Output as JSON with fields: humor_mechanics, cultural_context, explanation_for_ai
+You are a humor analyst. For each piece of content, identify:
+1. The setup and punchline
+2. The humor mechanics at play (pun, wordplay, incongruity, irony, absurdity)
+3. The cultural context needed to understand it
+4. The linguistic tricks used (phonetic ambiguity, double meaning, etc.)
+5. A Chain-of-Thought explanation of why the joke works
+
+Output valid JSON with fields: setup, punchline, humor_mechanics, cultural_context, linguistic_context, explanation_for_ai
 ```
 
-### Step 7: Configure Output
+### Step 8: Configure Output Node
+
+Click the red **Output** node:
 
 - **Export Format:** `JSONL`
 
-### Step 8: Run
+### Step 9: Run the Workflow
 
-Click **Run Workflow**. The result groups entries by language and enriches each with AI analysis. Preview the **Stats** tab to see the breakdown:
+Click **Run Workflow** in the toolbar. As data flows through each node, here is what happens at every stage:
+
+#### After Format Node
+Each joke becomes a structured JSON object:
+```json
+{"id":"item_001","raw_content":"Why did the bicycle fall over? Because it was two-tired!","language_code":"unknown","format":"text"}
+{"id":"item_002","raw_content":"Parallel lines have so much in common. It's a shame they'll never meet.","language_code":"unknown","format":"text"}
+{"id":"item_003","raw_content":"¿Qué hace una abeja en el gimnasio? ¡Zum-ba!","language_code":"unknown","format":"text"}
+...
+```
+
+#### After Tag & Categorize Node
+Tags and categories are appended:
+```json
+{"id":"item_001","raw_content":"Why did the bicycle fall over?...","language_code":"unknown","tags":["humor","why","the","bicycle","fall","over","because","it","was","two-tired"],"categories":["humor","wordplay","pun","multilingual"],"categorized":true}
+```
+
+#### After Group Node
+Entries are nested by language:
+```json
+{"group":"en","count":2,"items":[{...},{...}]}
+{"group":"es","count":2,"items":[{...},{...}]}
+{"group":"fr","count":2,"items":[{...},{...}]}
+```
+
+#### After Translate Node
+Each entry expands to 3 language variants (original + pt + it):
+```json
+{"group":"en","count":2,"items":[
+  {...,"language_code":"en","translated":false},
+  {...,"language_code":"pt","translated":true,"original_language":"en"},
+  {...,"language_code":"it","translated":true,"original_language":"en"}
+]}
+```
+
+#### After AI Transform Node
+Every entry gets AI-generated analysis:
+```json
+{
+  "group": "en",
+  "count": 6,
+  "items": [
+    {
+      "id": "item_001",
+      "language_code": "en",
+      "raw_content": "Why did the bicycle fall over? Because it was two-tired!",
+      "explanation_for_ai": "{\n  \"setup\": \"Why did the bicycle fall over?\",\n  \"punchline\": \"Because it was two-tired!\",\n  \"humor_mechanics\": [\"pun\", \"wordplay\"],\n  \"cultural_context\": \"Common knowledge about bicycles needing tires.\",\n  \"linguistic_context\": \"'Two-tired' is a homophone for 'too tired', creating a double meaning where the bicycle is both physically tired (having two tires) and exhausted.\",\n  \"explanation_for_ai\": \"The humor comes from a pun on 'two-tired' vs 'too tired'. The setup leads you to expect a logical answer about bicycle mechanics, but the punchline delivers a personification joke where the bicycle is anthropomorphized as feeling exhausted.\"}",
+      "ai_processed": true
+    }
+  ]
+}
+```
+
+### Step 10: Explore the Results
+
+The preview panel appears at the bottom of the canvas with three tabs:
+
+**Preview tab** — Shows the first few entries with their tags and language badges:
+```
+#1  en  pun, wordplay
+Why did the bicycle fall over? Because it was two-tired!
+
+#2  en  pun
+Parallel lines have so much in common...
+
+#3  es  pun, phonetic_ambiguity
+¿Qué hace una abeja en el gimnasio? ¡Zum-ba!
+```
+
+**Stats tab** — Shows the breakdown:
 
 | Stat | Value |
 |------|-------|
-| Total Entries | 3 |
-| Languages | 2 (en, es) |
-| Mechanics | pun, incongruity, irony |
+| Total Entries | 18 |
+| Languages | 5 (en, es, fr, pt, it) |
+| Regions | 1 |
+| Mechanics | pun, wordplay, incongruity, absurdity |
 
-### Step 9: Export
+**Raw tab** — Shows the full JSONL text, ready to copy.
 
-Click **Export** → Download your `.jsonl` file. You now have a production-quality multilingual humor dataset ready for fine-tuning.
+### Step 11: Export
+
+Click **Download** in the preview panel. The file saves as `my_workflow_dataset.jsonl` with 18 fully enriched entries.
+
+### What You Built
+
+| Node | Job Done |
+|------|----------|
+| 📥 Input | Ingested 6 jokes in 3 languages (en, es, fr) |
+| 🔧 Format | Split into structured JSON objects with IDs |
+| 🏷️ Tag & Categorize | Tagged every entry with humor/wordplay/pun/multilingual |
+| 📂 Group | Organized entries into language groups |
+| 🌐 Translate | Expanded each entry into Portuguese and Italian (6 → 18 entries) |
+| 🤖 AI Transform | Analyzed each joke's mechanics, context, and reasoning |
+| 📤 Output | Exported as ready-to-train JSONL |
+
+This is a production-grade pipeline. You can reuse this exact workflow for any content — just change the Input data and re-run.
 
 ---
 
