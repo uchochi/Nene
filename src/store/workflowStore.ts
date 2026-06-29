@@ -56,6 +56,15 @@ export interface HistoryItem {
   outputPreview: string
 }
 
+export interface SavedWorkflow {
+  id: string
+  name: string
+  nodes: Node[]
+  edges: Edge[]
+  createdAt: number
+  updatedAt: number
+}
+
 interface WorkflowState {
   nodes: Node[]
   edges: Edge[]
@@ -68,6 +77,11 @@ interface WorkflowState {
   datasetResult: string | null
   history: HistoryItem[]
   showOnboarding: boolean
+
+  /* multi-workflow */
+  savedWorkflows: SavedWorkflow[]
+  activeWorkflowId: string | null
+  isDirty: boolean
 
   onNodesChange: OnNodesChange
   onEdgesChange: OnEdgesChange
@@ -83,9 +97,19 @@ interface WorkflowState {
   setAiModel: (model: string) => void
   setDatasetResult: (result: string | null) => void
   runWorkflow: () => Promise<void>
+
+  /* multi-workflow actions */
   saveWorkflow: () => void
-  loadWorkflow: (data: string) => void
+  loadWorkflow: (id: string) => void
+  deleteWorkflow: (id: string) => void
+  renameWorkflow: (id: string, name: string) => void
+  duplicateWorkflow: (id: string) => void
+  exportWorkflow: (id: string) => void
+  importWorkflow: (data: string) => boolean
+  newWorkflow: () => void
   clearWorkflow: () => void
+  markClean: () => void
+
   addToHistory: (item: HistoryItem) => void
   clearHistory: () => void
   setShowOnboarding: (show: boolean) => void
@@ -119,15 +143,30 @@ export function getDefaultConfig(type: NodeType): NodeConfig {
   return { ...defaultNodeConfig[type] }
 }
 
+const STORAGE_KEY = 'n8n-dataset-state'
+
+function persist(state: WorkflowState): void {
+  try {
+    const data = {
+      savedWorkflows: state.savedWorkflows,
+      activeWorkflowId: state.activeWorkflowId,
+      onboardingShown: state.onboardingShown,
+      apiKey: state.apiKey,
+      aiModel: state.aiModel,
+      history: state.history,
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+  } catch { /* ignore */ }
+}
+
 const loadState = (): Partial<WorkflowState> => {
   try {
-    const saved = localStorage.getItem('n8n-dataset-state')
+    const saved = localStorage.getItem(STORAGE_KEY)
     if (saved) {
       const parsed = JSON.parse(saved)
       return {
-        nodes: parsed.nodes || [],
-        edges: parsed.edges || [],
-        workflowName: parsed.workflowName || 'Untitled Workflow',
+        savedWorkflows: parsed.savedWorkflows || [],
+        activeWorkflowId: parsed.activeWorkflowId || null,
         onboardingShown: parsed.onboardingShown ?? false,
         apiKey: parsed.apiKey || '',
         aiModel: parsed.aiModel || 'gpt-4o-mini',
@@ -137,6 +176,18 @@ const loadState = (): Partial<WorkflowState> => {
     }
   } catch { /* ignore */ }
   return {}
+}
+
+let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
+
+function scheduleAutoSave(get: () => WorkflowState): void {
+  if (autoSaveTimer) clearTimeout(autoSaveTimer)
+  autoSaveTimer = setTimeout(() => {
+    const state = get()
+    if (state.isDirty && state.activeWorkflowId) {
+      state.saveWorkflow()
+    }
+  }, 3000)
 }
 
 export const useWorkflowStore = create<WorkflowState>((set, get) => ({
@@ -151,17 +202,41 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   datasetResult: null,
   history: [],
   showOnboarding: true,
+  savedWorkflows: [],
+  activeWorkflowId: null,
+  isDirty: false,
 
   ...loadState(),
 
+  /* load active workflow from saved */
+  ...(() => {
+    const saved = loadState()
+    if (saved.activeWorkflowId && saved.savedWorkflows) {
+      const active = (saved.savedWorkflows as SavedWorkflow[]).find(
+        w => w.id === saved.activeWorkflowId
+      )
+      if (active) {
+        return {
+          nodes: active.nodes,
+          edges: active.edges,
+          workflowName: active.name,
+        }
+      }
+    }
+    return {}
+  })(),
+
   onNodesChange: (changes) => {
-    set({ nodes: applyNodeChanges(changes, get().nodes) })
+    set({ nodes: applyNodeChanges(changes, get().nodes), isDirty: true })
+    scheduleAutoSave(get)
   },
   onEdgesChange: (changes) => {
-    set({ edges: applyEdgeChanges(changes, get().edges) })
+    set({ edges: applyEdgeChanges(changes, get().edges), isDirty: true })
+    scheduleAutoSave(get)
   },
   onConnect: (connection) => {
-    set({ edges: addEdge(connection, get().edges) })
+    set({ edges: addEdge(connection, get().edges), isDirty: true })
+    scheduleAutoSave(get)
   },
   addNode: (type, position) => {
     const id = uuidv4()
@@ -172,7 +247,8 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       position,
       data: { nodeType: type, config, color: getNodeColor(type) },
     }
-    set({ nodes: [...get().nodes, newNode] })
+    set({ nodes: [...get().nodes, newNode], isDirty: true })
+    scheduleAutoSave(get)
   },
   removeSelectedNode: () => {
     const { selectedNodeId, nodes, edges } = get()
@@ -181,7 +257,9 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       nodes: nodes.filter(n => n.id !== selectedNodeId),
       edges: edges.filter(e => e.source !== selectedNodeId && e.target !== selectedNodeId),
       selectedNodeId: null,
+      isDirty: true,
     })
+    scheduleAutoSave(get)
   },
   selectNode: (id) => set({ selectedNodeId: id }),
   updateNodeConfig: (id, config) => {
@@ -189,18 +267,170 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       nodes: get().nodes.map(n =>
         n.id === id ? { ...n, data: { ...n.data, config: { ...n.data.config, ...config } } } : n
       ),
+      isDirty: true,
     })
+    scheduleAutoSave(get)
   },
-  setWorkflowName: (name) => set({ workflowName: name }),
+  setWorkflowName: (name) => set({ workflowName: name, isDirty: true }),
   setRunning: (running) => set({ isRunning: running }),
   setOnboardingShown: (shown) => {
     set({ onboardingShown: shown })
-    localStorage.setItem('n8n-dataset-state', JSON.stringify({ ...get(), onboardingShown: shown }))
+    persist(get())
   },
   setShowOnboarding: (show) => set({ showOnboarding: show }),
-  setApiKey: (key) => set({ apiKey: key }),
-  setAiModel: (model) => set({ aiModel: model }),
+  setApiKey: (key) => {
+    set({ apiKey: key })
+    persist(get())
+  },
+  setAiModel: (model) => {
+    set({ aiModel: model })
+    persist(get())
+  },
   setDatasetResult: (result) => set({ datasetResult: result }),
+  markClean: () => set({ isDirty: false }),
+
+  /* ── Multi-workflow CRUD ── */
+
+  saveWorkflow: () => {
+    const { nodes, edges, workflowName, activeWorkflowId, savedWorkflows } = get()
+    const now = Date.now()
+
+    if (activeWorkflowId) {
+      /* update existing */
+      set({
+        savedWorkflows: savedWorkflows.map(w =>
+          w.id === activeWorkflowId
+            ? { ...w, name: workflowName, nodes, edges, updatedAt: now }
+            : w
+        ),
+        isDirty: false,
+      })
+    } else {
+      /* create new */
+      const id = uuidv4()
+      set({
+        activeWorkflowId: id,
+        savedWorkflows: [
+          ...savedWorkflows,
+          { id, name: workflowName, nodes, edges, createdAt: now, updatedAt: now },
+        ],
+        isDirty: false,
+      })
+    }
+    persist(get())
+  },
+
+  loadWorkflow: (id) => {
+    const wf = get().savedWorkflows.find(w => w.id === id)
+    if (!wf) return
+    set({
+      nodes: wf.nodes,
+      edges: wf.edges,
+      workflowName: wf.name,
+      activeWorkflowId: wf.id,
+      selectedNodeId: null,
+      datasetResult: null,
+      isDirty: false,
+    })
+    persist(get())
+  },
+
+  deleteWorkflow: (id) => {
+    const { savedWorkflows, activeWorkflowId } = get()
+    const remaining = savedWorkflows.filter(w => w.id !== id)
+    const wasActive = activeWorkflowId === id
+    set({
+      savedWorkflows: remaining,
+      activeWorkflowId: wasActive ? null : activeWorkflowId,
+      ...(wasActive ? { nodes: [], edges: [], workflowName: 'Untitled Workflow', selectedNodeId: null, datasetResult: null } : {}),
+    })
+    persist(get())
+  },
+
+  renameWorkflow: (id, name) => {
+    set({
+      savedWorkflows: get().savedWorkflows.map(w =>
+        w.id === id ? { ...w, name, updatedAt: Date.now() } : w
+      ),
+      ...(get().activeWorkflowId === id ? { workflowName: name } : {}),
+    })
+    persist(get())
+  },
+
+  duplicateWorkflow: (id) => {
+    const source = get().savedWorkflows.find(w => w.id === id)
+    if (!source) return
+    const newWf: SavedWorkflow = {
+      ...source,
+      id: uuidv4(),
+      name: `${source.name} (copy)`,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }
+    set({ savedWorkflows: [...get().savedWorkflows, newWf] })
+    persist(get())
+  },
+
+  exportWorkflow: (id) => {
+    const wf = get().savedWorkflows.find(w => w.id === id)
+    if (!wf) return
+    const blob = new Blob([JSON.stringify(wf, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${wf.name.replace(/\s+/g, '_').toLowerCase()}.n8n-dataset.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  },
+
+  importWorkflow: (data) => {
+    try {
+      const parsed = JSON.parse(data) as SavedWorkflow
+      if (!parsed.nodes || !parsed.edges) return false
+      const newWf: SavedWorkflow = {
+        id: uuidv4(),
+        name: parsed.name || 'Imported Workflow',
+        nodes: parsed.nodes,
+        edges: parsed.edges,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }
+      set({ savedWorkflows: [...get().savedWorkflows, newWf] })
+      persist(get())
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  newWorkflow: () => {
+    set({
+      nodes: [],
+      edges: [],
+      workflowName: 'Untitled Workflow',
+      activeWorkflowId: null,
+      selectedNodeId: null,
+      datasetResult: null,
+      isDirty: false,
+    })
+  },
+
+  clearWorkflow: () => {
+    set({ nodes: [], edges: [], selectedNodeId: null, datasetResult: null, isDirty: true })
+  },
+
+  /* ── History ── */
+
+  addToHistory: (item) => {
+    set({ history: [item, ...get().history].slice(0, 50) })
+    persist(get())
+  },
+  clearHistory: () => {
+    set({ history: [] })
+    persist(get())
+  },
+
+  /* ── Pipeline execution ── */
 
   runWorkflow: async () => {
     const { nodes, edges, apiKey } = get()
@@ -228,7 +458,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
           case 'tag': {
             const tagCfg = cfg as TagNodeConfig
             if (Array.isArray(data)) {
-              data = await tagData(data, tagCfg, apiKey)
+              data = tagData(data, tagCfg)
             }
             break
           }
@@ -242,7 +472,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
           case 'translate': {
             const trCfg = cfg as TranslateNodeConfig
             if (Array.isArray(data)) {
-              data = await translateData(data, trCfg, apiKey)
+              data = translateData(data, trCfg)
             }
             break
           }
@@ -271,34 +501,9 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       set({ isRunning: false })
     }
   },
-
-  saveWorkflow: () => {
-    const { nodes, edges, workflowName } = get()
-    const data = JSON.stringify({ nodes, edges, workflowName })
-    localStorage.setItem('n8n-dataset-workflow', data)
-  },
-
-  loadWorkflow: (data) => {
-    try {
-      const parsed = JSON.parse(data)
-      set({
-        nodes: parsed.nodes || [],
-        edges: parsed.edges || [],
-        workflowName: parsed.workflowName || 'Loaded Workflow',
-      })
-    } catch { /* ignore */ }
-  },
-
-  clearWorkflow: () => {
-    set({ nodes: [], edges: [], selectedNodeId: null, datasetResult: null })
-  },
-
-  addToHistory: (item) => {
-    set({ history: [item, ...get().history].slice(0, 50) })
-  },
-
-  clearHistory: () => set({ history: [] }),
 }))
+
+/* ── helpers ── */
 
 function topologicalSort(nodes: Node[], edges: Edge[]): Node[] {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
@@ -328,7 +533,7 @@ function topologicalSort(nodes: Node[], edges: Edge[]): Node[] {
   return sorted
 }
 
-async function formatData(data: string, cfg: FormatNodeConfig): Promise<Record<string, unknown>[]> {
+function formatData(data: string, cfg: FormatNodeConfig): Record<string, unknown>[] {
   if (cfg.formatType === 'json') {
     try { return JSON.parse(data) } catch { return [{ raw: data }] }
   }
@@ -343,7 +548,7 @@ async function formatData(data: string, cfg: FormatNodeConfig): Promise<Record<s
   }))
 }
 
-async function tagData(data: Record<string, unknown>[], cfg: TagNodeConfig, _apiKey: string): Promise<Record<string, unknown>[]> {
+function tagData(data: Record<string, unknown>[], cfg: TagNodeConfig): Record<string, unknown>[] {
   const categories = cfg.categories.split(',').map(c => c.trim()).filter(Boolean)
   return data.map(item => ({
     ...item,
@@ -369,19 +574,14 @@ function groupData(data: Record<string, unknown>[], cfg: GroupNodeConfig): Recor
   })
   const result: Record<string, unknown>[] = []
   groups.forEach((items, groupName) => {
-    result.push({
-      group: groupName,
-      count: items.length,
-      items,
-    })
+    result.push({ group: groupName, count: items.length, items })
   })
   return result
 }
 
-async function translateData(data: Record<string, unknown>[], cfg: TranslateNodeConfig, _apiKey: string): Promise<Record<string, unknown>[]> {
+function translateData(data: Record<string, unknown>[], cfg: TranslateNodeConfig): Record<string, unknown>[] {
   const langs = cfg.targetLanguages.split(',').map(l => l.trim()).filter(Boolean)
   if (langs.length === 0) return data
-
   return data.flatMap(item => {
     return langs.map(lang => ({
       ...item,
@@ -394,7 +594,6 @@ async function translateData(data: Record<string, unknown>[], cfg: TranslateNode
 
 async function aiTransform(data: Record<string, unknown>[], cfg: AITransformNodeConfig, apiKey: string): Promise<Record<string, unknown>[]> {
   if (!apiKey) return data.map(item => ({ ...item, ai_processed: false, error: 'No API key configured' }))
-
   try {
     const enhanced = await Promise.all(data.map(async (item) => {
       const explanation = await callAI(item, cfg, apiKey)
@@ -408,7 +607,6 @@ async function aiTransform(data: Record<string, unknown>[], cfg: AITransformNode
 
 async function aiTransformString(data: string, cfg: AITransformNodeConfig, apiKey: string): Promise<Record<string, unknown>[]> {
   if (!apiKey) return [{ raw: data, ai_processed: false, error: 'No API key configured' }]
-
   try {
     const response = await callAI({ raw_content: data }, cfg, apiKey)
     return [{ raw_content: data, explanation_for_ai: response, ai_processed: true }]
