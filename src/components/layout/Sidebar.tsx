@@ -91,8 +91,6 @@ function RenameButton({ wf, renameWorkflow }: { wf: SavedWorkflow; renameWorkflo
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const addNode = useWorkflowStore(s => s.addNode)
-  const apiKey = useWorkflowStore(s => s.apiKey)
-  const setApiKey = useWorkflowStore(s => s.setApiKey)
   const aiModel = useWorkflowStore(s => s.aiModel)
   const setAiModel = useWorkflowStore(s => s.setAiModel)
   const history = useWorkflowStore(s => s.history)
@@ -207,17 +205,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               Settings
             </span>
           </div>
-          <div className="px-3 pb-3 space-y-3">
-            <div>
-              <label className="label text-[10px]">AI API Key</label>
-              <input
-                className="input-field text-xs"
-                type="password"
-                value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
-                placeholder="sk-..."
-              />
-            </div>
+          <div className="px-3 pb-3">
             <div>
               <label className="label text-[10px]">AI Model</label>
               <select
