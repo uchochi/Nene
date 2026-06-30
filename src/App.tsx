@@ -22,6 +22,7 @@ export default function App() {
   const loading = useAuthStore(s => s.loading)
   const initialized = useAuthStore(s => s.initialized)
   const initialize = useAuthStore(s => s.initialize)
+  const configError = useAuthStore(s => s.configError)
 
   useEffect(() => {
     initTMA()
@@ -38,6 +39,26 @@ export default function App() {
     return (
       <div className="min-h-screen bg-n8n-dark-1 flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-n8n-orange border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (configError) {
+    return (
+      <div className="min-h-screen bg-n8n-dark-1 flex items-center justify-center p-4">
+        <div className="max-w-md text-center">
+          <div className="w-12 h-12 bg-n8n-red/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-n8n-red text-xl font-bold">!</span>
+          </div>
+          <h2 className="text-lg font-semibold text-white mb-2">Configuration Required</h2>
+          <p className="text-sm text-n8n-gray mb-4">
+            Supabase environment variables are missing. Add them in your Vercel project settings:
+          </p>
+          <div className="bg-n8n-dark-4 rounded-lg p-3 text-left text-xs font-mono text-n8n-gray-light space-y-1">
+            <div><span className="text-n8n-orange">VITE_SUPABASE_URL</span> = https://kuqnphthwqplrrxridvi.supabase.co</div>
+            <div><span className="text-n8n-orange">VITE_SUPABASE_ANON_KEY</span> = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...</div>
+          </div>
+        </div>
       </div>
     )
   }

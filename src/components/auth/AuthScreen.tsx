@@ -17,6 +17,7 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
     setError('')
     setLoading(true)
 
+    if (!supabase) { setError('Supabase not configured'); setLoading(false); return }
     try {
       const { error: authError } = isRegister
         ? await supabase.auth.signUp({ email, password })

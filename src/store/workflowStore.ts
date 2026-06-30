@@ -194,6 +194,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   initialize: async (userId: string) => {
     set({ userId })
 
+    if (!supabase) return
     const [workflowsRes, historyRes] = await Promise.all([
       supabase.from('workflows').select('*').eq('user_id', userId).order('updated_at', { ascending: false }),
       supabase.from('history_items').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(50),
@@ -276,7 +277,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   saveWorkflow: async () => {
     const { nodes, edges, workflowName, activeWorkflowId, savedWorkflows, userId } = get()
-    if (!userId) return
+    if (!userId || !supabase) return
 
     if (activeWorkflowId) {
       const now = new Date().toISOString()
@@ -336,7 +337,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   deleteWorkflow: async (id) => {
     const { savedWorkflows, activeWorkflowId, userId } = get()
-    if (!userId) return
+    if (!userId || !supabase) return
 
     await supabase.from('workflows').delete().eq('id', id).eq('user_id', userId)
 
@@ -351,7 +352,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   renameWorkflow: async (id, name) => {
     const { userId } = get()
-    if (!userId) return
+    if (!userId || !supabase) return
 
     await supabase.from('workflows').update({ name, updated_at: new Date().toISOString() }).eq('id', id).eq('user_id', userId)
 
@@ -365,7 +366,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   duplicateWorkflow: async (id) => {
     const { userId } = get()
-    if (!userId) return
+    if (!userId || !supabase) return
 
     const source = get().savedWorkflows.find(w => w.id === id)
     if (!source) return
@@ -407,7 +408,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   importWorkflow: async (data) => {
     const { userId } = get()
-    if (!userId) return false
+    if (!userId || !supabase) return false
 
     try {
       const parsed = JSON.parse(data) as SavedWorkflow
@@ -461,7 +462,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   addToHistory: async (item) => {
     const { userId } = get()
-    if (!userId) return
+    if (!userId || !supabase) return
 
     await supabase.from('history_items').insert({
       user_id: userId,
@@ -475,7 +476,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   clearHistory: async () => {
     const { userId } = get()
-    if (!userId) return
+    if (!userId || !supabase) return
 
     await supabase.from('history_items').delete().eq('user_id', userId)
     set({ history: [] })
