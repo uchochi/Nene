@@ -221,30 +221,15 @@ export function ConfigPanel() {
         )}
 
         {nodeType === 'ai' && (
-          <>
-            <div>
-              <label className="label">AI Model</label>
-              <select
-                className="select-field"
-                value={(config as AITransformNodeConfig).model || 'gpt-4o-mini'}
-                onChange={e => update('model', e.target.value)}
-              >
-                <option value="gpt-4o-mini">GPT-4o Mini</option>
-                <option value="gpt-4o">GPT-4o</option>
-                <option value="claude-3-haiku">Claude 3 Haiku</option>
-                <option value="claude-3-sonnet">Claude 3 Sonnet</option>
-              </select>
-            </div>
-            <div>
-              <label className="label">Custom Prompt</label>
-              <textarea
-                className="textarea-field"
-                value={(config as AITransformNodeConfig).prompt || ''}
-                onChange={e => update('prompt', e.target.value)}
-                placeholder="Leave empty for default analysis prompt..."
-              />
-            </div>
-          </>
+          <div>
+            <label className="label">Custom Prompt</label>
+            <textarea
+              className="textarea-field"
+              value={(config as AITransformNodeConfig).prompt || ''}
+              onChange={e => update('prompt', e.target.value)}
+              placeholder="Leave empty for default analysis prompt..."
+            />
+          </div>
         )}
       </div>
     </div>

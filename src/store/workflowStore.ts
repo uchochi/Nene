@@ -44,7 +44,6 @@ export interface OutputNodeConfig extends NodeConfig {
 }
 export interface AITransformNodeConfig extends NodeConfig {
   prompt: string
-  model: string
   label: string
 }
 
@@ -73,7 +72,6 @@ interface WorkflowState {
   isRunning: boolean
   onboardingShown: boolean
   apiKey: string
-  aiModel: string
   datasetResult: string | null
   history: HistoryItem[]
   showOnboarding: boolean
@@ -94,7 +92,6 @@ interface WorkflowState {
   setRunning: (running: boolean) => void
   setOnboardingShown: (shown: boolean) => void
   setApiKey: (key: string) => void
-  setAiModel: (model: string) => void
   setDatasetResult: (result: string | null) => void
   runWorkflow: () => Promise<void>
 
@@ -122,7 +119,7 @@ const defaultNodeConfig: Record<NodeType, NodeConfig> = {
   group: { label: 'Group', groupBy: 'language' },
   translate: { label: 'Translate', targetLanguages: '', preserveMechanics: true },
   output: { label: 'Output', format: 'jsonl' },
-  ai: { label: 'AI Transform', prompt: '', model: 'gpt-4o-mini' },
+  ai: { label: 'AI Transform', prompt: '' },
 }
 
 const nodeColors: Record<NodeType, string> = {
@@ -152,7 +149,6 @@ function persist(state: WorkflowState): void {
       activeWorkflowId: state.activeWorkflowId,
       onboardingShown: state.onboardingShown,
       apiKey: state.apiKey,
-      aiModel: state.aiModel,
       history: state.history,
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
@@ -185,7 +181,6 @@ const loadState = (): Partial<WorkflowState> => {
         activeWorkflowId: parsed.activeWorkflowId || null,
         onboardingShown: parsed.onboardingShown ?? false,
         apiKey: parsed.apiKey || getEnvApiKey(),
-        aiModel: parsed.aiModel || getDefaultModel(),
         history: parsed.history || [],
         showOnboarding: parsed.showOnboarding ?? true,
       }
@@ -193,7 +188,6 @@ const loadState = (): Partial<WorkflowState> => {
   } catch { /* ignore */ }
   return {
     apiKey: getEnvApiKey(),
-    aiModel: getDefaultModel(),
   }
 }
 
@@ -217,7 +211,6 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   isRunning: false,
   onboardingShown: false,
   apiKey: getEnvApiKey(),
-  aiModel: getDefaultModel(),
   datasetResult: null,
   history: [],
   showOnboarding: true,
@@ -299,10 +292,6 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   setShowOnboarding: (show) => set({ showOnboarding: show }),
   setApiKey: (key) => {
     set({ apiKey: key })
-    persist(get())
-  },
-  setAiModel: (model) => {
-    set({ aiModel: model })
     persist(get())
   },
   setDatasetResult: (result) => set({ datasetResult: result }),
@@ -644,7 +633,7 @@ async function callAI(item: Record<string, unknown>, cfg: AITransformNodeConfig,
   const userPrompt = cfg.prompt || `Analyze this content and explain the underlying mechanics, cultural context, and linguistic techniques used. Format the output as a JSON object with fields: "setup", "punchline", "humor_mechanics", "cultural_context", "linguistic_context", "explanation_for_ai".\n\nContent: ${text}`
   const provider = getAIProvider()
   const apiUrl = AI_API[provider] || AI_API.openai
-  const model = cfg.model || getDefaultModel()
+  const model = getDefaultModel()
 
   const response = await fetch(apiUrl, {
     method: 'POST',

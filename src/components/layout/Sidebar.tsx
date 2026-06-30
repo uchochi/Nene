@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { NodePalette } from '../nodes/NodePalette'
 import { useWorkflowStore, type NodeType, type SavedWorkflow } from '../../store/workflowStore'
 import {
-  History, Settings, X, Plus, Download, Upload,
+  History, X, Plus, Download, Upload,
   FileText, Copy, Trash2, Edit3,
 } from 'lucide-react'
 
@@ -91,8 +91,6 @@ function RenameButton({ wf, renameWorkflow }: { wf: SavedWorkflow; renameWorkflo
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const addNode = useWorkflowStore(s => s.addNode)
-  const aiModel = useWorkflowStore(s => s.aiModel)
-  const setAiModel = useWorkflowStore(s => s.setAiModel)
   const history = useWorkflowStore(s => s.history)
   const clearHistory = useWorkflowStore(s => s.clearHistory)
   const savedWorkflows = useWorkflowStore(s => s.savedWorkflows)
@@ -194,31 +192,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             ) : (
               savedWorkflows.map(wf => <WorkflowRow key={wf.id} wf={wf} />)
             )}
-          </div>
-        </div>
-
-        {/* Settings */}
-        <div className="border-t border-n8n-dark-4">
-          <div className="flex items-center gap-2 px-4 py-2">
-            <Settings size={14} className="text-n8n-gray-light" />
-            <span className="text-xs text-n8n-gray-light font-semibold uppercase tracking-wider">
-              Settings
-            </span>
-          </div>
-          <div className="px-3 pb-3">
-            <div>
-              <label className="label text-[10px]">AI Model</label>
-              <select
-                className="select-field text-xs"
-                value={aiModel}
-                onChange={e => setAiModel(e.target.value)}
-              >
-                <option value="gpt-4o-mini">GPT-4o Mini</option>
-                <option value="gpt-4o">GPT-4o</option>
-                <option value="claude-3-haiku">Claude 3 Haiku</option>
-                <option value="claude-3-sonnet">Claude 3 Sonnet</option>
-              </select>
-            </div>
           </div>
         </div>
 
