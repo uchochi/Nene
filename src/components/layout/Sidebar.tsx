@@ -111,9 +111,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       const text = ev.target?.result as string
-      if (importWorkflow(text)) {
+      const ok = await importWorkflow(text)
+      if (ok) {
         alert('Workflow imported successfully')
       } else {
         alert('Invalid workflow file')

@@ -51,10 +51,11 @@ export function Toolbar({ onToggleSidebar }: ToolbarProps) {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       const text = ev.target?.result as string
-      if (importWorkflow(text)) {
-        if (isTMA()) hapticFeedback('success')
+      const ok = await importWorkflow(text)
+      if (ok && isTMA()) {
+        hapticFeedback('success')
       }
     }
     reader.readAsText(file)

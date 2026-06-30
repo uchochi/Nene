@@ -6,6 +6,7 @@ import {
   addEdge,
 } from 'reactflow'
 import { v4 as uuidv4 } from 'uuid'
+import { supabase } from '../lib/supabase'
 
 export type NodeType = 'input' | 'format' | 'tag' | 'group' | 'translate' | 'output' | 'ai'
 
@@ -81,6 +82,11 @@ interface WorkflowState {
   activeWorkflowId: string | null
   isDirty: boolean
 
+  /* supabase sync */
+  initialized: boolean
+  userId: string | null
+  initialize: (userId: string) => Promise<void>
+
   onNodesChange: OnNodesChange
   onEdgesChange: OnEdgesChange
   onConnect: OnConnect
@@ -96,19 +102,19 @@ interface WorkflowState {
   runWorkflow: () => Promise<void>
 
   /* multi-workflow actions */
-  saveWorkflow: () => void
+  saveWorkflow: () => Promise<void>
   loadWorkflow: (id: string) => void
-  deleteWorkflow: (id: string) => void
-  renameWorkflow: (id: string, name: string) => void
-  duplicateWorkflow: (id: string) => void
+  deleteWorkflow: (id: string) => Promise<void>
+  renameWorkflow: (id: string, name: string) => Promise<void>
+  duplicateWorkflow: (id: string) => Promise<void>
   exportWorkflow: (id: string) => void
-  importWorkflow: (data: string) => boolean
+  importWorkflow: (data: string) => Promise<boolean>
   newWorkflow: () => void
   clearWorkflow: () => void
   markClean: () => void
 
-  addToHistory: (item: HistoryItem) => void
-  clearHistory: () => void
+  addToHistory: (item: HistoryItem) => Promise<void>
+  clearHistory: () => Promise<void>
   setShowOnboarding: (show: boolean) => void
 }
 
@@ -140,21 +146,6 @@ export function getDefaultConfig(type: NodeType): NodeConfig {
   return { ...defaultNodeConfig[type] }
 }
 
-const STORAGE_KEY = 'n8n-dataset-state'
-
-function persist(state: WorkflowState): void {
-  try {
-    const data = {
-      savedWorkflows: state.savedWorkflows,
-      activeWorkflowId: state.activeWorkflowId,
-      onboardingShown: state.onboardingShown,
-      apiKey: state.apiKey,
-      history: state.history,
-    }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-  } catch { /* ignore */ }
-}
-
 function getEnvApiKey(): string {
   const provider = import.meta.env.VITE_AI_PROVIDER ?? 'openrouter'
   if (provider === 'openrouter') {
@@ -169,26 +160,6 @@ function getDefaultModel(): string {
 
 function getAIProvider(): string {
   return import.meta.env.VITE_AI_PROVIDER ?? 'openrouter'
-}
-
-const loadState = (): Partial<WorkflowState> => {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      const parsed = JSON.parse(saved)
-      return {
-        savedWorkflows: parsed.savedWorkflows || [],
-        activeWorkflowId: parsed.activeWorkflowId || null,
-        onboardingShown: parsed.onboardingShown ?? false,
-        apiKey: parsed.apiKey || getEnvApiKey(),
-        history: parsed.history || [],
-        showOnboarding: parsed.showOnboarding ?? true,
-      }
-    }
-  } catch { /* ignore */ }
-  return {
-    apiKey: getEnvApiKey(),
-  }
 }
 
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
@@ -217,26 +188,36 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   savedWorkflows: [],
   activeWorkflowId: null,
   isDirty: false,
+  initialized: false,
+  userId: null,
 
-  ...loadState(),
+  initialize: async (userId: string) => {
+    set({ userId })
 
-  /* load active workflow from saved */
-  ...(() => {
-    const saved = loadState()
-    if (saved.activeWorkflowId && saved.savedWorkflows) {
-      const active = (saved.savedWorkflows as SavedWorkflow[]).find(
-        w => w.id === saved.activeWorkflowId
-      )
-      if (active) {
-        return {
-          nodes: active.nodes,
-          edges: active.edges,
-          workflowName: active.name,
-        }
-      }
-    }
-    return {}
-  })(),
+    const [workflowsRes, historyRes] = await Promise.all([
+      supabase.from('workflows').select('*').eq('user_id', userId).order('updated_at', { ascending: false }),
+      supabase.from('history_items').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(50),
+    ])
+
+    const savedWorkflows: SavedWorkflow[] = (workflowsRes.data || []).map((w: Record<string, unknown>) => ({
+      id: w.id as string,
+      name: w.name as string,
+      nodes: (w.nodes as Node[]) || [],
+      edges: (w.edges as Edge[]) || [],
+      createdAt: new Date(w.created_at as string).getTime(),
+      updatedAt: new Date(w.updated_at as string).getTime(),
+    }))
+
+    const history: HistoryItem[] = (historyRes.data || []).map((h: Record<string, unknown>) => ({
+      id: h.id as string,
+      timestamp: new Date(h.created_at as string).getTime(),
+      workflowName: h.workflow_name as string,
+      rowCount: (h.row_count as number) || 0,
+      outputPreview: (h.output_preview as string) || '',
+    }))
+
+    set({ savedWorkflows, history, initialized: true })
+  },
 
   onNodesChange: (changes) => {
     set({ nodes: applyNodeChanges(changes, get().nodes), isDirty: true })
@@ -285,47 +266,58 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   },
   setWorkflowName: (name) => set({ workflowName: name, isDirty: true }),
   setRunning: (running) => set({ isRunning: running }),
-  setOnboardingShown: (shown) => {
-    set({ onboardingShown: shown })
-    persist(get())
-  },
+  setOnboardingShown: (shown) => set({ onboardingShown: shown }),
   setShowOnboarding: (show) => set({ showOnboarding: show }),
-  setApiKey: (key) => {
-    set({ apiKey: key })
-    persist(get())
-  },
+  setApiKey: (key) => set({ apiKey: key }),
   setDatasetResult: (result) => set({ datasetResult: result }),
   markClean: () => set({ isDirty: false }),
 
   /* ── Multi-workflow CRUD ── */
 
-  saveWorkflow: () => {
-    const { nodes, edges, workflowName, activeWorkflowId, savedWorkflows } = get()
-    const now = Date.now()
+  saveWorkflow: async () => {
+    const { nodes, edges, workflowName, activeWorkflowId, savedWorkflows, userId } = get()
+    if (!userId) return
 
     if (activeWorkflowId) {
-      /* update existing */
+      const now = new Date().toISOString()
+      await supabase.from('workflows').update({
+        name: workflowName,
+        nodes: JSON.parse(JSON.stringify(nodes)),
+        edges: JSON.parse(JSON.stringify(edges)),
+        updated_at: now,
+      }).eq('id', activeWorkflowId).eq('user_id', userId)
+
       set({
         savedWorkflows: savedWorkflows.map(w =>
           w.id === activeWorkflowId
-            ? { ...w, name: workflowName, nodes, edges, updatedAt: now }
+            ? { ...w, name: workflowName, nodes, edges, updatedAt: Date.now() }
             : w
         ),
         isDirty: false,
       })
     } else {
-      /* create new */
       const id = uuidv4()
+      const now = new Date().toISOString()
+
+      await supabase.from('workflows').insert({
+        id,
+        user_id: userId,
+        name: workflowName,
+        nodes: JSON.parse(JSON.stringify(nodes)),
+        edges: JSON.parse(JSON.stringify(edges)),
+        created_at: now,
+        updated_at: now,
+      })
+
       set({
         activeWorkflowId: id,
         savedWorkflows: [
           ...savedWorkflows,
-          { id, name: workflowName, nodes, edges, createdAt: now, updatedAt: now },
+          { id, name: workflowName, nodes, edges, createdAt: Date.now(), updatedAt: Date.now() },
         ],
         isDirty: false,
       })
     }
-    persist(get())
   },
 
   loadWorkflow: (id) => {
@@ -340,11 +332,14 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       datasetResult: null,
       isDirty: false,
     })
-    persist(get())
   },
 
-  deleteWorkflow: (id) => {
-    const { savedWorkflows, activeWorkflowId } = get()
+  deleteWorkflow: async (id) => {
+    const { savedWorkflows, activeWorkflowId, userId } = get()
+    if (!userId) return
+
+    await supabase.from('workflows').delete().eq('id', id).eq('user_id', userId)
+
     const remaining = savedWorkflows.filter(w => w.id !== id)
     const wasActive = activeWorkflowId === id
     set({
@@ -352,31 +347,50 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       activeWorkflowId: wasActive ? null : activeWorkflowId,
       ...(wasActive ? { nodes: [], edges: [], workflowName: 'Untitled Workflow', selectedNodeId: null, datasetResult: null } : {}),
     })
-    persist(get())
   },
 
-  renameWorkflow: (id, name) => {
+  renameWorkflow: async (id, name) => {
+    const { userId } = get()
+    if (!userId) return
+
+    await supabase.from('workflows').update({ name, updated_at: new Date().toISOString() }).eq('id', id).eq('user_id', userId)
+
     set({
       savedWorkflows: get().savedWorkflows.map(w =>
         w.id === id ? { ...w, name, updatedAt: Date.now() } : w
       ),
       ...(get().activeWorkflowId === id ? { workflowName: name } : {}),
     })
-    persist(get())
   },
 
-  duplicateWorkflow: (id) => {
+  duplicateWorkflow: async (id) => {
+    const { userId } = get()
+    if (!userId) return
+
     const source = get().savedWorkflows.find(w => w.id === id)
     if (!source) return
+
+    const newId = uuidv4()
+    const now = new Date().toISOString()
+
+    await supabase.from('workflows').insert({
+      id: newId,
+      user_id: userId,
+      name: `${source.name} (copy)`,
+      nodes: JSON.parse(JSON.stringify(source.nodes)),
+      edges: JSON.parse(JSON.stringify(source.edges)),
+      created_at: now,
+      updated_at: now,
+    })
+
     const newWf: SavedWorkflow = {
       ...source,
-      id: uuidv4(),
+      id: newId,
       name: `${source.name} (copy)`,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     }
     set({ savedWorkflows: [...get().savedWorkflows, newWf] })
-    persist(get())
   },
 
   exportWorkflow: (id) => {
@@ -391,12 +405,29 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     URL.revokeObjectURL(url)
   },
 
-  importWorkflow: (data) => {
+  importWorkflow: async (data) => {
+    const { userId } = get()
+    if (!userId) return false
+
     try {
       const parsed = JSON.parse(data) as SavedWorkflow
       if (!parsed.nodes || !parsed.edges) return false
+
+      const newId = uuidv4()
+      const now = new Date().toISOString()
+
+      await supabase.from('workflows').insert({
+        id: newId,
+        user_id: userId,
+        name: parsed.name || 'Imported Workflow',
+        nodes: JSON.parse(JSON.stringify(parsed.nodes)),
+        edges: JSON.parse(JSON.stringify(parsed.edges)),
+        created_at: now,
+        updated_at: now,
+      })
+
       const newWf: SavedWorkflow = {
-        id: uuidv4(),
+        id: newId,
         name: parsed.name || 'Imported Workflow',
         nodes: parsed.nodes,
         edges: parsed.edges,
@@ -404,7 +435,6 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         updatedAt: Date.now(),
       }
       set({ savedWorkflows: [...get().savedWorkflows, newWf] })
-      persist(get())
       return true
     } catch {
       return false
@@ -429,13 +459,26 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   /* ── History ── */
 
-  addToHistory: (item) => {
+  addToHistory: async (item) => {
+    const { userId } = get()
+    if (!userId) return
+
+    await supabase.from('history_items').insert({
+      user_id: userId,
+      workflow_name: item.workflowName,
+      row_count: item.rowCount,
+      output_preview: item.outputPreview,
+    })
+
     set({ history: [item, ...get().history].slice(0, 50) })
-    persist(get())
   },
-  clearHistory: () => {
+
+  clearHistory: async () => {
+    const { userId } = get()
+    if (!userId) return
+
+    await supabase.from('history_items').delete().eq('user_id', userId)
     set({ history: [] })
-    persist(get())
   },
 
   /* ── Pipeline execution ── */
