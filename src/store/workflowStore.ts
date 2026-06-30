@@ -159,6 +159,22 @@ function persist(state: WorkflowState): void {
   } catch { /* ignore */ }
 }
 
+function getEnvApiKey(): string {
+  const provider = import.meta.env.VITE_AI_PROVIDER ?? 'openrouter'
+  if (provider === 'openrouter') {
+    return import.meta.env.VITE_OPENROUTER_API_KEY ?? ''
+  }
+  return import.meta.env.VITE_OPENAI_API_KEY ?? ''
+}
+
+function getDefaultModel(): string {
+  return import.meta.env.VITE_AI_MODEL ?? 'gpt-4o-mini'
+}
+
+function getAIProvider(): string {
+  return import.meta.env.VITE_AI_PROVIDER ?? 'openrouter'
+}
+
 const loadState = (): Partial<WorkflowState> => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
@@ -168,14 +184,17 @@ const loadState = (): Partial<WorkflowState> => {
         savedWorkflows: parsed.savedWorkflows || [],
         activeWorkflowId: parsed.activeWorkflowId || null,
         onboardingShown: parsed.onboardingShown ?? false,
-        apiKey: parsed.apiKey || '',
-        aiModel: parsed.aiModel || 'gpt-4o-mini',
+        apiKey: parsed.apiKey || getEnvApiKey(),
+        aiModel: parsed.aiModel || getDefaultModel(),
         history: parsed.history || [],
         showOnboarding: parsed.showOnboarding ?? true,
       }
     }
   } catch { /* ignore */ }
-  return {}
+  return {
+    apiKey: getEnvApiKey(),
+    aiModel: getDefaultModel(),
+  }
 }
 
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
@@ -197,8 +216,8 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   workflowName: 'Untitled Workflow',
   isRunning: false,
   onboardingShown: false,
-  apiKey: '',
-  aiModel: 'gpt-4o-mini',
+  apiKey: getEnvApiKey(),
+  aiModel: getDefaultModel(),
   datasetResult: null,
   history: [],
   showOnboarding: true,
@@ -615,18 +634,30 @@ async function aiTransformString(data: string, cfg: AITransformNodeConfig, apiKe
   }
 }
 
+const AI_API: Record<string, string> = {
+  openai: 'https://api.openai.com/v1/chat/completions',
+  openrouter: 'https://openrouter.ai/api/v1/chat/completions',
+}
+
 async function callAI(item: Record<string, unknown>, cfg: AITransformNodeConfig, apiKey: string): Promise<string> {
   const text = Object.values(item).join('\n').slice(0, 2000)
   const userPrompt = cfg.prompt || `Analyze this content and explain the underlying mechanics, cultural context, and linguistic techniques used. Format the output as a JSON object with fields: "setup", "punchline", "humor_mechanics", "cultural_context", "linguistic_context", "explanation_for_ai".\n\nContent: ${text}`
+  const provider = getAIProvider()
+  const apiUrl = AI_API[provider] || AI_API.openai
+  const model = cfg.model || getDefaultModel()
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const response = await fetch(apiUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
+      ...(provider === 'openrouter' ? {
+        'HTTP-Referer': 'https://n8n-dataset.vercel.app',
+        'X-Title': 'n8n Dataset',
+      } : {}),
     },
     body: JSON.stringify({
-      model: cfg.model || 'gpt-4o-mini',
+      model,
       messages: [
         { role: 'system', content: 'You are a data formatting assistant. Analyze content and produce structured JSON output.' },
         { role: 'user', content: userPrompt },

@@ -3,7 +3,7 @@ import { NodePalette } from '../nodes/NodePalette'
 import { useWorkflowStore, type NodeType, type SavedWorkflow } from '../../store/workflowStore'
 import {
   History, Settings, X, Plus, Download, Upload,
-  FileText, Copy, Trash2, Edit3, Check,
+  FileText, Copy, Trash2, Edit3,
 } from 'lucide-react'
 
 interface SidebarProps {
