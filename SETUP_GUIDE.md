@@ -81,9 +81,26 @@ vercel --prod
 5. Click **Deploy**.
 6. After deployment, Vercel gives you a URL like `https://n8n-dataset.vercel.app`.
 
+### Environment Variables (Vercel)
+
+After deployment, go to **Vercel Dashboard → Project → Settings → Environment Variables** and add:
+
+| Variable | Description |
+|----------|-------------|
+| `VITE_SUPABASE_URL` | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anonymous key |
+| `VITE_REDIRECT_URL` | (Optional) URL to redirect users who open the app outside Telegram. Leave empty for local dev. |
+| `BOT_TOKEN` | Telegram bot token from [@BotFather](https://t.me/BotFather) — used for HMAC verification and bot webhook |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service_role key (Settings → API) — for server-side user management |
+| `SUPABASE_JWT_SECRET` | Supabase JWT secret (Settings → API) — for signing custom auth JWTs |
+
+Redeploy after setting environment variables.
+
 ---
 
-## 4. Deploy to Netlify
+## 4. Deploy to Netlify (Alternative)
+
+> **Note:** The `api/` serverless functions and `middleware.ts` require Vercel's Edge Runtime. Netlify does not support them. Use Vercel for full functionality.
 
 ### Option A: Netlify CLI
 
@@ -126,29 +143,74 @@ After deploying, take your production URL (e.g. `https://n8n-dataset.vercel.app`
 
 Now open a chat with your bot and tap the menu button at the bottom — it opens your Mini App.
 
+### Setup Bot Webhook (for Phone Number)
+
+To receive phone numbers when users share them, configure the Telegram bot webhook:
+
+```bash
+# Replace <BOT_TOKEN> with your bot token and <URL> with your Vercel app URL
+curl -X POST "https://api.telegram.org/bot<BOT_TOKEN>/setWebhook?url=<URL>/api/tg-bot-webhook"
+```
+
+Example:
+```bash
+curl -X POST "https://api.telegram.org/bot123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11/setWebhook?url=https://n8n-dataset.vercel.app/api/tg-bot-webhook"
+```
+
+After this, when a user shares their phone number in the Mini App, Telegram will forward it to the webhook, which stores it in the Supabase `users` table.
+
 ---
 
-## 6. Configure AI (Optional)
+## 6. Authentication (Telegram Identity)
 
-To use the AI Transform node, add your API key in the app:
+The app uses **Telegram identity** for authentication — no email or password needed.
 
-1. Open the app and click **Get Started**.
-2. In the sidebar, scroll to **Settings**.
-3. Enter your **OpenAI** (`sk-...`) or **OpenRouter** API key.
-4. Select your preferred model.
+### How it works
 
-Supported providers and models:
+1. User opens the Mini App from Telegram
+2. Middleware verifies the `tgWebAppData` HMAC signature using the bot token (prevents faked requests)
+3. The React app extracts the user's Telegram profile (ID, username, first/last name) from the init data
+4. It calls `/api/tg-auth` which verifies the data and upserts the user in the `users` table
+5. A custom JWT is returned, signed with the Supabase JWT secret — used for all database requests
+6. (Optional) The user is prompted to share their phone number via `requestPhoneAccess()`
+
+### Database tables
+
+- **`users`** — Stores Telegram user profiles: `telegram_id` (PK), `username`, `first_name`, `last_name`, `phone_number`
+- **`workflows`** — User's saved workflows (keyed by Telegram user ID)
+- **`history_items`** — User's pipeline execution history (keyed by Telegram user ID)
+
+RLS policies use `auth.uid()` from the custom JWT to ensure users only access their own data.
+
+### Bot Webhook for Phone Numbers
+
+When a user shares their phone number via the app, Telegram sends it to the bot as a service message. The webhook endpoint (`/api/tg-bot-webhook`) receives it and updates the `phone_number` field in the `users` table.
+
+---
+
+## 7. Configure AI (Optional)
+
+AI features are configured via environment variables — no settings UI needed in the app.
+
+Set these in **Vercel → Project → Settings → Environment Variables**:
+
+| Variable | Description |
+|----------|-------------|
+| `VITE_AI_PROVIDER` | `openrouter` or `openai` |
+| `VITE_OPENROUTER_API_KEY` | Your OpenRouter API key (for OpenRouter provider) |
+| `VITE_OPENAI_API_KEY` | Your OpenAI API key (for OpenAI provider) |
+| `VITE_AI_MODEL` | Model name e.g. `gpt-4o-mini`, `claude-3-haiku` |
+
+Supported models:
 
 | Provider | Models |
 |----------|--------|
 | OpenAI | `gpt-4o-mini`, `gpt-4o` |
 | OpenRouter | `gpt-4o-mini`, `gpt-4o`, `claude-3-haiku`, `claude-3-sonnet` |
 
-> API keys are stored in **localStorage** on your device only.
-
 ---
 
-## 7. Telegram-Only Access (Redirect Guard)
+## 8. Telegram-Only Access (Redirect Guard)
 
 To prevent users from accessing the app outside Telegram (e.g., copied links shared in browsers),
 set the `VITE_REDIRECT_URL` environment variable to a destination URL (your website, a notice page, etc.).
@@ -187,10 +249,11 @@ VITE_REDIRECT_URL=https://your-website.com/why-telegram-only
 
 ---
 
-## 8. Production Checklist
+## 9. Production Checklist
 
 - [ ] App loads inside Telegram (test on iOS, Android, Desktop)
 - [ ] Outside Telegram, app redirects 301 to `VITE_REDIRECT_URL`
+- [ ] Telegram identity auto-auth works (no email/password)
 - [ ] Onboarding displays on first visit only
 - [ ] Nodes can be added by clicking or dragging from the palette
 - [ ] Workflow runs end-to-end (Input → Format → AI → Output)
@@ -199,30 +262,37 @@ VITE_REDIRECT_URL=https://your-website.com/why-telegram-only
 - [ ] Stats tab shows language/region/mechanic breakdown
 - [ ] Sidebar closes on mobile
 - [ ] Toolbar actions (Save, Export, Clear) work
-- [ ] `VITE_REDIRECT_URL` set in Vercel env vars
+- [ ] `VITE_REDIRECT_URL`, `BOT_TOKEN`, `SUPABASE_JWT_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` set in Vercel env vars
+- [ ] Bot webhook configured (for phone number)
 
 ---
 
-## 9. Troubleshooting
+## 10. Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
 | App doesn't load in Telegram | Ensure URL uses **HTTPS** (required by Telegram) |
 | "This bot can't access the URL" | Check Mini App URL in BotFather is correct |
 | App redirects everyone even in Telegram | Make sure `VITE_REDIRECT_URL` is NOT set during local dev, and that Telegram's URL includes `tgWebAppData` |
-| AI Transform fails | Verify your API key in sidebar Settings |
+| "Authentication Error" shown | Verify `BOT_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY`, and `SUPABASE_JWT_SECRET` are set in Vercel env vars |
+| Phone number not stored | Run the `setWebhook` command and verify the webhook URL is reachable |
+| AI Transform fails | Verify `VITE_AI_PROVIDER`, `VITE_OPENROUTER_API_KEY` (or `VITE_OPENAI_API_KEY`), and `VITE_AI_MODEL` in Vercel env vars |
 | Nodes don't connect | Click and drag from the bottom handle (orange dot) to the top handle of another node |
 | Canvas looks empty | Click any node in the sidebar palette to add it |
 | CSS looks broken | Run `npm run build` and redeploy |
 
 ---
 
-## 10. Project Structure Reference
+## 11. Project Structure Reference
 
 ```
 n8n-dataset/
 ├── index.html              # Entry HTML (loads Telegram SDK)
-├── middleware.ts           # Vercel Edge Middleware — Telegram-only redirect guard
+├── middleware.ts           # Vercel Edge Middleware — HMAC + redirect guard
+├── api/
+│   ├── _lib.ts             # Shared utilities (JWT signing, HMAC, user parsing)
+│   ├── tg-auth.ts          # Telegram auth endpoint — exchange initData for JWT
+│   └── tg-bot-webhook.ts   # Bot webhook — stores shared phone numbers
 ├── vite.config.ts          # Vite config (base: './')
 ├── tailwind.config.js      # n8n brand colors + dark theme
 ├── postcss.config.js       # PostCSS + Tailwind

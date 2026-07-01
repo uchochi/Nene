@@ -9,6 +9,15 @@ export const supabase = isConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null
 
+export async function setSupabaseToken(token: string | null) {
+  if (!supabase) return
+  if (token) {
+    await supabase.auth.setSession({ access_token: token, refresh_token: '' })
+  } else {
+    await supabase.auth.signOut()
+  }
+}
+
 export const supabaseUrl_ = supabaseUrl
 export const supabaseAnonKey_ = supabaseAnonKey
 
