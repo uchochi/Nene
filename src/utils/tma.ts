@@ -72,7 +72,15 @@ export function initTMA(): TMAInstance {
 
 export function isTMA(): boolean {
   const tg = window.Telegram?.WebApp as Record<string, unknown> | undefined
-  return !!tg?.initData
+  if (tg?.initData) return true
+
+  const hash = window.location.hash
+  if (hash && (hash.includes('tgWebAppData') || hash.includes('query_id='))) return true
+
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('tgWebAppData')) return true
+
+  return false
 }
 
 export function showMainButton(text: string, onClick: () => void): void {

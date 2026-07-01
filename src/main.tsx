@@ -4,13 +4,20 @@ import './index.css'
 import { isTMA } from './utils/tma'
 import App from './App'
 
-const redirectUrl = import.meta.env.VITE_REDIRECT_URL
-if (!isTMA() && redirectUrl) {
-  window.location.href = redirectUrl
+function boot() {
+  if (!isTMA() && import.meta.env.VITE_REDIRECT_URL) {
+    window.location.href = import.meta.env.VITE_REDIRECT_URL
+  } else {
+    createRoot(document.getElementById('root')!).render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    )
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', boot)
 } else {
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  )
+  boot()
 }
