@@ -56,7 +56,7 @@ export default async function handler(req: Request) {
     } else {
       const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
         email: `${telegramId}@telegram.user`,
-        password: crypto.randomUUID(),
+        password: randomUUID(),
         email_confirm: true,
         user_metadata: {
           telegram_id: telegramId,
