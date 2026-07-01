@@ -1,4 +1,6 @@
-import { corsHeaders } from './_lib'
+/// <reference types="node" />
+
+import { corsHeaders } from './_lib.js'
 
 export default async function handler(req: Request) {
   if (req.method !== 'POST') {

@@ -1,6 +1,8 @@
-import { randomUUID } from 'crypto'
+/// <reference types="node" />
+
+import { randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
-import { verifyTelegramInitData, parseUserFromInitData, corsHeaders } from './_lib'
+import { verifyTelegramInitData, parseUserFromInitData, corsHeaders } from './_lib.js'
 
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') {

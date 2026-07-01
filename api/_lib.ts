@@ -1,4 +1,6 @@
-import { createHmac } from 'crypto'
+/// <reference types="node" />
+
+import { createHmac } from 'node:crypto'
 
 const encoder = new TextEncoder()
 
