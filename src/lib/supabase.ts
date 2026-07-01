@@ -9,6 +9,9 @@ export const supabase = isConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null
 
+export const supabaseUrl_ = supabaseUrl
+export const supabaseAnonKey_ = supabaseAnonKey
+
 export function requireSupabase(): void {
   if (!isConfigured) {
     throw new Error(
