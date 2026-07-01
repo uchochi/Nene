@@ -31,7 +31,7 @@ export default function App() {
 
   useEffect(() => {
     if (user && !wfInitialized) {
-      wfInitialize(String(user.telegram_id))
+      wfInitialize(user.id)
     }
   }, [user, wfInitialized, wfInitialize])
 
@@ -50,24 +50,16 @@ export default function App() {
           <div className="w-12 h-12 bg-n8n-red/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-n8n-red text-xl font-bold">!</span>
           </div>
-          <h2 className="text-lg font-semibold text-white mb-2">Authentication Error</h2>
+          <h2 className="text-lg font-semibold text-white mb-2">Configuration Error</h2>
           <p className="text-sm text-n8n-gray mb-4">{configError}</p>
-          <p className="text-xs text-n8n-gray">Please open this app inside Telegram.</p>
+          <p className="text-xs text-n8n-gray">Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.</p>
         </div>
       </div>
     )
   }
 
   if (!user) {
-    return (
-      <div className="min-h-screen bg-n8n-dark-1 flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-n8n-orange border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
-  }
-
-  if (!user.first_name && !user.username) {
-    return <AuthScreen user={user} onAuthSuccess={() => {}} />
+    return <AuthScreen />
   }
 
   if (showOnboarding) {

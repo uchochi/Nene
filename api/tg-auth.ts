@@ -1,5 +1,6 @@
+import { randomUUID } from 'crypto'
 import { createClient } from '@supabase/supabase-js'
-import { verifyTelegramInitData, parseUserFromInitData, signJwt, corsHeaders } from './_lib'
+import { verifyTelegramInitData, parseUserFromInitData, corsHeaders } from './_lib'
 
 export default async function handler(req: Request) {
   if (req.method === 'OPTIONS') {
@@ -16,9 +17,8 @@ export default async function handler(req: Request) {
   const botToken = process.env.BOT_TOKEN
   const supabaseUrl = process.env.VITE_SUPABASE_URL
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  const jwtSecret = process.env.SUPABASE_JWT_SECRET
 
-  if (!botToken || !supabaseUrl || !supabaseKey || !jwtSecret) {
+  if (!botToken || !supabaseUrl || !supabaseKey) {
     return new Response(JSON.stringify({ error: 'Server misconfigured' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders() },
@@ -41,47 +41,70 @@ export default async function handler(req: Request) {
 
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    const { error: upsertError } = await supabase.from('users').upsert(
-      {
-        telegram_id: telegramId,
-        username: tgUser.username,
-        first_name: tgUser.first_name,
-        last_name: tgUser.last_name,
-        phone_number: tgUser.phone_number,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'telegram_id' }
-    )
-    if (upsertError) throw upsertError
+    const { data: existing } = await supabase
+      .from('users')
+      .select('supabase_user_id')
+      .eq('telegram_id', telegramId)
+      .single()
 
-    const token = signJwt(
-      {
-        sub: String(telegramId),
-        role: 'authenticated',
-        telegram_id: telegramId,
-        username: tgUser.username,
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 30 * 24 * 3600,
-      },
-      jwtSecret
-    )
+    let supabaseUserId: string
 
-    return new Response(
-      JSON.stringify({
-        token,
-        user: {
+    if (existing?.supabase_user_id) {
+      supabaseUserId = existing.supabase_user_id
+    } else {
+      const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+        email: `${telegramId}@telegram.user`,
+        password: crypto.randomUUID(),
+        email_confirm: true,
+        user_metadata: {
+          telegram_id: telegramId,
+          username: tgUser.username,
+          first_name: tgUser.first_name,
+          last_name: tgUser.last_name,
+        },
+      })
+      if (createError || !newUser.user) throw createError ?? new Error('Failed to create user')
+
+      supabaseUserId = newUser.user.id
+
+      await supabase.from('users').upsert(
+        {
+          supabase_user_id: supabaseUserId,
           telegram_id: telegramId,
           username: tgUser.username,
           first_name: tgUser.first_name,
           last_name: tgUser.last_name,
           phone_number: tgUser.phone_number,
+          updated_at: new Date().toISOString(),
         },
-      }),
+        { onConflict: 'telegram_id' }
+      )
+    }
+
+    const sessionRes = await fetch(
+      `${supabaseUrl}/auth/v1/admin/sessions`,
       {
-        status: 200,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseKey}`,
+          'apikey': supabaseKey,
+        },
+        body: JSON.stringify({ user_id: supabaseUserId }),
       }
     )
+
+    if (!sessionRes.ok) {
+      const errText = await sessionRes.text()
+      throw new Error(`Failed to create session: ${errText}`)
+    }
+
+    const sessionData = await sessionRes.json()
+
+    return new Response(JSON.stringify(sessionData), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+    })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Authentication failed'
     return new Response(JSON.stringify({ error: message }), {

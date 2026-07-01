@@ -89,10 +89,8 @@ After deployment, go to **Vercel Dashboard → Project → Settings → Environm
 |----------|-------------|
 | `VITE_SUPABASE_URL` | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anonymous key |
-| `VITE_REDIRECT_URL` | (Optional) URL to redirect users who open the app outside Telegram. Leave empty for local dev. |
-| `BOT_TOKEN` | Telegram bot token from [@BotFather](https://t.me/BotFather) — used for HMAC verification and bot webhook |
+| `BOT_TOKEN` | Telegram bot token from [@BotFather](https://t.me/BotFather) — used for Telegram sign-in and bot webhook |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service_role key (Settings → API) — for server-side user management |
-| `SUPABASE_JWT_SECRET` | Supabase JWT secret (Settings → API) — for signing custom auth JWTs |
 
 Redeploy after setting environment variables.
 
@@ -100,7 +98,7 @@ Redeploy after setting environment variables.
 
 ## 4. Deploy to Netlify (Alternative)
 
-> **Note:** The `api/` serverless functions and `middleware.ts` require Vercel's Edge Runtime. Netlify does not support them. Use Vercel for full functionality.
+> **Note:** The `api/` serverless functions require Vercel's runtime. Netlify does not support them. Use Vercel if you need Telegram sign-in or bot webhook.
 
 ### Option A: Netlify CLI
 
@@ -161,34 +159,58 @@ After this, when a user shares their phone number in the Mini App, Telegram will
 
 ---
 
-## 6. Authentication (Telegram Identity)
+## 6. Authentication
 
-The app uses **Telegram identity** for authentication — no email or password needed.
+The app uses **Supabase email/password** as the primary authentication method, with **Telegram sign-in** as an extra option when opened inside the Telegram Mini App.
 
-### How it works
+### Email / Password Flow (Primary)
 
-1. User opens the Mini App from Telegram
-2. Middleware verifies the `tgWebAppData` HMAC signature using the bot token (prevents faked requests)
-3. The React app extracts the user's Telegram profile (ID, username, first/last name) from the init data
-4. It calls `/api/tg-auth` which verifies the data and upserts the user in the `users` table
-5. A custom JWT is returned, signed with the Supabase JWT secret — used for all database requests
-6. (Optional) The user is prompted to share their phone number via `requestPhoneAccess()`
+1. User opens the app in any browser or Telegram
+2. The Auth screen shows email/password sign-in and sign-up forms
+3. On sign-up, a confirmation email with an **8-digit verification code** is sent (uses `onboarding@resend.dev` via Resend SMTP)
+4. User enters the code to confirm their account
+5. Once authenticated, the app loads normally
+
+### Telegram Sign-In Flow (Extra Option)
+
+1. Inside Telegram, the Auth screen shows a **"Sign in with Telegram"** button below the email form
+2. Clicking it sends the user's Telegram identity to `/api/tg-auth`
+3. The API verifies the Telegram init data and creates a corresponding user in Supabase Auth (or links to an existing one)
+4. A Supabase session is returned — no email/password needed
 
 ### Database tables
 
-- **`users`** — Stores Telegram user profiles: `telegram_id` (PK), `username`, `first_name`, `last_name`, `phone_number`
-- **`workflows`** — User's saved workflows (keyed by Telegram user ID)
-- **`history_items`** — User's pipeline execution history (keyed by Telegram user ID)
+- **`users`** — Links Telegram accounts to Supabase Auth: `id` (UUID PK), `supabase_user_id` (UUID FK → auth.users), `telegram_id` (BIGINT), `username`, `first_name`, `last_name`, `phone_number`
+- **`workflows`** — User's saved workflows (keyed by Supabase `auth.uid()` UUID)
+- **`history_items`** — User's pipeline execution history (keyed by Supabase `auth.uid()` UUID)
 
-RLS policies use `auth.uid()` from the custom JWT to ensure users only access their own data.
+RLS policies use `auth.uid()` from the Supabase session to ensure users only access their own data.
 
 ### Bot Webhook for Phone Numbers
 
-When a user shares their phone number via the app, Telegram sends it to the bot as a service message. The webhook endpoint (`/api/tg-bot-webhook`) receives it and updates the `phone_number` field in the `users` table.
+When a user shares their phone number via the Telegram Mini App, Telegram sends it to the bot as a service message. The webhook endpoint (`/api/tg-bot-webhook`) receives it and updates the `phone_number` field in the `users` table (matched by `telegram_id`).
 
 ---
 
-## 7. Configure AI (Optional)
+## 7. Optional: Redirect Outside Telegram
+
+To prevent non-Telegram access (e.g., shared links opened in browsers), set `VITE_REDIRECT_URL` in your Vercel env vars:
+
+```bash
+VITE_REDIRECT_URL=https://your-website.com
+```
+
+Two layers protect the app:
+
+1. **Server-side (Vercel Edge Middleware)** — Checks for `tgWebAppData` query param on every request. If missing and `VITE_REDIRECT_URL` is set, sends a 301 redirect before any content loads.
+
+2. **Client-side fallback (main.tsx)** — If middleware is bypassed (e.g., local dev), checks `window.Telegram.WebApp.initData` and redirects via JavaScript.
+
+Leave `VITE_REDIRECT_URL` **empty** during local development so the app works in any browser. Static assets (`/assets/*`) are excluded from the middleware check.
+
+---
+
+## 8. Configure AI (Optional)
 
 AI features are configured via environment variables — no settings UI needed in the app.
 
@@ -210,50 +232,12 @@ Supported models:
 
 ---
 
-## 8. Telegram-Only Access (Redirect Guard)
+## 8. Production Checklist
 
-To prevent users from accessing the app outside Telegram (e.g., copied links shared in browsers),
-set the `VITE_REDIRECT_URL` environment variable to a destination URL (your website, a notice page, etc.).
-
-### How it works
-
-Two layers of protection:
-
-1. **Server-side (Vercel Edge Middleware)** — On every page request, the middleware (`middleware.ts`)
-   checks for the `tgWebAppData` query parameter that Telegram appends when opening a Mini App.
-   If it's missing and `VITE_REDIRECT_URL` is set, the server sends an **HTTP 301 redirect**
-   to the destination URL. This runs before any content is served — no HTML or JS reaches the browser.
-
-2. **Client-side (fallback)** — If the middleware is bypassed (e.g., during local development),
-   the React app checks `window.Telegram.WebApp.initData` on startup and redirects via JavaScript.
-
-Static assets (`/assets/*`) are excluded from the middleware check so JS/CSS files load normally
-inside Telegram.
-
-### Configuration
-
-```bash
-# .env.example — set this in your Vercel project dashboard:
-VITE_REDIRECT_URL=https://your-website.com/why-telegram-only
-```
-
-- Leave **empty** during local development so you can test in a regular browser.
-- Set in **Vercel → Project → Settings → Environment Variables** for production.
-- The prefix `VITE_` makes it available to both the server middleware and the client bundle.
-
-### Testing
-
-- Inside Telegram: app loads normally.
-- Outside Telegram (browser, shared link): user is redirected 301 to the configured URL.
-- Local dev with `VITE_REDIRECT_URL` empty: no redirect, works in any browser.
-
----
-
-## 9. Production Checklist
-
-- [ ] App loads inside Telegram (test on iOS, Android, Desktop)
-- [ ] Outside Telegram, app redirects 301 to `VITE_REDIRECT_URL`
-- [ ] Telegram identity auto-auth works (no email/password)
+- [ ] App loads in browser with email/password sign-in
+- [ ] App loads inside Telegram with "Sign in with Telegram" option
+- [ ] Email verification code is received and works
+- [ ] Telegram sign-in creates/links to correct Supabase user
 - [ ] Onboarding displays on first visit only
 - [ ] Nodes can be added by clicking or dragging from the palette
 - [ ] Workflow runs end-to-end (Input → Format → AI → Output)
@@ -262,19 +246,20 @@ VITE_REDIRECT_URL=https://your-website.com/why-telegram-only
 - [ ] Stats tab shows language/region/mechanic breakdown
 - [ ] Sidebar closes on mobile
 - [ ] Toolbar actions (Save, Export, Clear) work
-- [ ] `VITE_REDIRECT_URL`, `BOT_TOKEN`, `SUPABASE_JWT_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` set in Vercel env vars
+- [ ] `BOT_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY` set in Vercel env vars
+- [ ] `VITE_REDIRECT_URL` set if redirecting outside Telegram
 - [ ] Bot webhook configured (for phone number)
 
 ---
 
-## 10. Troubleshooting
+## 9. Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
 | App doesn't load in Telegram | Ensure URL uses **HTTPS** (required by Telegram) |
 | "This bot can't access the URL" | Check Mini App URL in BotFather is correct |
-| App redirects everyone even in Telegram | Make sure `VITE_REDIRECT_URL` is NOT set during local dev, and that Telegram's URL includes `tgWebAppData` |
-| "Authentication Error" shown | Verify `BOT_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY`, and `SUPABASE_JWT_SECRET` are set in Vercel env vars |
+| Email not received | Verify Resend SMTP is configured in Supabase Auth → Settings → SMTP |
+| "Server misconfigured" on Telegram sign-in | Verify `BOT_TOKEN` and `SUPABASE_SERVICE_ROLE_KEY` are set in Vercel env vars |
 | Phone number not stored | Run the `setWebhook` command and verify the webhook URL is reachable |
 | AI Transform fails | Verify `VITE_AI_PROVIDER`, `VITE_OPENROUTER_API_KEY` (or `VITE_OPENAI_API_KEY`), and `VITE_AI_MODEL` in Vercel env vars |
 | Nodes don't connect | Click and drag from the bottom handle (orange dot) to the top handle of another node |
@@ -283,15 +268,15 @@ VITE_REDIRECT_URL=https://your-website.com/why-telegram-only
 
 ---
 
-## 11. Project Structure Reference
+## 10. Project Structure Reference
 
 ```
 n8n-dataset/
 ├── index.html              # Entry HTML (loads Telegram SDK)
-├── middleware.ts           # Vercel Edge Middleware — HMAC + redirect guard
+├── middleware.ts           # Vercel Edge Middleware — redirect outside Telegram (optional)
 ├── api/
-│   ├── _lib.ts             # Shared utilities (JWT signing, HMAC, user parsing)
-│   ├── tg-auth.ts          # Telegram auth endpoint — exchange initData for JWT
+│   ├── _lib.ts             # Shared utilities (HMAC, user parsing, CORS)
+│   ├── tg-auth.ts          # Telegram auth endpoint — exchange initData for Supabase session
 │   └── tg-bot-webhook.ts   # Bot webhook — stores shared phone numbers
 ├── vite.config.ts          # Vite config (base: './')
 ├── tailwind.config.js      # n8n brand colors + dark theme
@@ -304,12 +289,17 @@ n8n-dataset/
 │   ├── App.tsx             # Root component (routing between onboarding + editor)
 │   ├── index.css           # Tailwind directives + component classes + ReactFlow overrides
 │   ├── store/
+│   │   ├── authStore.ts    # Zustand store (Supabase Auth session)
 │   │   └── workflowStore.ts # Zustand store (nodes, edges, pipeline, AI calls)
+│   ├── lib/
+│   │   └── supabase.ts     # Supabase client singleton
 │   ├── utils/
 │   │   ├── tma.ts          # Telegram Mini App SDK helpers
 │   │   ├── ai.ts           # OpenAI/OpenRouter API client
 │   │   └── jsonl.ts        # JSONL validation, statistics, download
 │   └── components/
+│       ├── auth/
+│       │   └── AuthScreen.tsx  # Email/password auth + Telegram sign-in button
 │       ├── layout/
 │       │   ├── Sidebar.tsx        # Node palette + AI settings + history
 │       │   ├── Toolbar.tsx        # Run/Save/Export/Clear

@@ -1,4 +1,4 @@
-import { verifyTelegramInitData, parseUserFromInitData, corsHeaders } from './_lib'
+import { corsHeaders } from './_lib'
 
 export default async function handler(req: Request) {
   if (req.method !== 'POST') {
