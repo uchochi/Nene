@@ -148,9 +148,49 @@ Supported providers and models:
 
 ---
 
-## 7. Production Checklist
+## 7. Telegram-Only Access (Redirect Guard)
+
+To prevent users from accessing the app outside Telegram (e.g., copied links shared in browsers),
+set the `VITE_REDIRECT_URL` environment variable to a destination URL (your website, a notice page, etc.).
+
+### How it works
+
+Two layers of protection:
+
+1. **Server-side (Vercel Edge Middleware)** — On every page request, the middleware (`middleware.ts`)
+   checks for the `tgWebAppData` query parameter that Telegram appends when opening a Mini App.
+   If it's missing and `VITE_REDIRECT_URL` is set, the server sends an **HTTP 301 redirect**
+   to the destination URL. This runs before any content is served — no HTML or JS reaches the browser.
+
+2. **Client-side (fallback)** — If the middleware is bypassed (e.g., during local development),
+   the React app checks `window.Telegram.WebApp.initData` on startup and redirects via JavaScript.
+
+Static assets (`/assets/*`) are excluded from the middleware check so JS/CSS files load normally
+inside Telegram.
+
+### Configuration
+
+```bash
+# .env.example — set this in your Vercel project dashboard:
+VITE_REDIRECT_URL=https://your-website.com/why-telegram-only
+```
+
+- Leave **empty** during local development so you can test in a regular browser.
+- Set in **Vercel → Project → Settings → Environment Variables** for production.
+- The prefix `VITE_` makes it available to both the server middleware and the client bundle.
+
+### Testing
+
+- Inside Telegram: app loads normally.
+- Outside Telegram (browser, shared link): user is redirected 301 to the configured URL.
+- Local dev with `VITE_REDIRECT_URL` empty: no redirect, works in any browser.
+
+---
+
+## 8. Production Checklist
 
 - [ ] App loads inside Telegram (test on iOS, Android, Desktop)
+- [ ] Outside Telegram, app redirects 301 to `VITE_REDIRECT_URL`
 - [ ] Onboarding displays on first visit only
 - [ ] Nodes can be added by clicking or dragging from the palette
 - [ ] Workflow runs end-to-end (Input → Format → AI → Output)
@@ -159,15 +199,17 @@ Supported providers and models:
 - [ ] Stats tab shows language/region/mechanic breakdown
 - [ ] Sidebar closes on mobile
 - [ ] Toolbar actions (Save, Export, Clear) work
+- [ ] `VITE_REDIRECT_URL` set in Vercel env vars
 
 ---
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
 | App doesn't load in Telegram | Ensure URL uses **HTTPS** (required by Telegram) |
 | "This bot can't access the URL" | Check Mini App URL in BotFather is correct |
+| App redirects everyone even in Telegram | Make sure `VITE_REDIRECT_URL` is NOT set during local dev, and that Telegram's URL includes `tgWebAppData` |
 | AI Transform fails | Verify your API key in sidebar Settings |
 | Nodes don't connect | Click and drag from the bottom handle (orange dot) to the top handle of another node |
 | Canvas looks empty | Click any node in the sidebar palette to add it |
@@ -175,11 +217,12 @@ Supported providers and models:
 
 ---
 
-## 9. Project Structure Reference
+## 10. Project Structure Reference
 
 ```
 n8n-dataset/
 ├── index.html              # Entry HTML (loads Telegram SDK)
+├── middleware.ts           # Vercel Edge Middleware — Telegram-only redirect guard
 ├── vite.config.ts          # Vite config (base: './')
 ├── tailwind.config.js      # n8n brand colors + dark theme
 ├── postcss.config.js       # PostCSS + Tailwind
