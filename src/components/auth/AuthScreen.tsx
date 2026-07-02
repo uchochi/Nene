@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../store/authStore'
+import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react'
 
 type View = 'sign-in' | 'sign-up' | 'verify-otp'
 
@@ -13,6 +14,8 @@ export function AuthScreen() {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
   const [tgAvailable, setTgAvailable] = useState(false)
   const { initialize } = useAuthStore()
 
@@ -36,13 +39,12 @@ export function AuthScreen() {
     try {
       if (!supabase) throw new Error('Supabase not configured')
       const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
+        email, password,
         options: { emailRedirectTo: undefined },
       })
       if (signUpError) throw signUpError
       setView('verify-otp')
-      setMessage('We sent an 8-digit code to your email. Please enter it below.')
+      setMessage('We sent an 8-digit code to your email.')
     } catch (err: any) {
       setError(err.message ?? 'Sign up failed')
     } finally {
@@ -57,10 +59,7 @@ export function AuthScreen() {
     setLoading(true)
     try {
       if (!supabase) throw new Error('Supabase not configured')
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
       if (signInError) throw signInError
       await initialize()
     } catch (err: any) {
@@ -77,11 +76,7 @@ export function AuthScreen() {
     setLoading(true)
     try {
       if (!supabase) throw new Error('Supabase not configured')
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        email,
-        token: otp,
-        type: 'signup',
-      })
+      const { error: verifyError } = await supabase.auth.verifyOtp({ email, token: otp, type: 'signup' })
       if (verifyError) throw verifyError
       await initialize()
     } catch (err: any) {
@@ -98,27 +93,22 @@ export function AuthScreen() {
     try {
       const initData = window.Telegram?.WebApp?.initData
       if (!initData) throw new Error('Not running inside Telegram')
-
       const res = await fetch('/api/tg-auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ initData }),
       })
-
       if (!res.ok) {
         const err = await res.json()
         throw new Error(err.error ?? 'Telegram sign in failed')
       }
-
       const sessionData = await res.json()
       if (!supabase) throw new Error('Supabase not configured')
-
       const { error: sessionError } = await supabase.auth.setSession({
         access_token: sessionData.access_token,
         refresh_token: sessionData.refresh_token,
       })
       if (sessionError) throw sessionError
-
       await initialize()
     } catch (err: any) {
       setError(err.message ?? 'Telegram sign in failed')
@@ -127,183 +117,176 @@ export function AuthScreen() {
     }
   }
 
-  const inputClass = 'n8n-input'
-  const labelClass = 'n8n-label'
-  const btnPrimaryClass = 'n8n-btn-primary disabled:opacity-50 disabled:cursor-not-allowed w-full'
-  const linkClass = 'text-n8n-orange hover:text-n8n-orange-light transition-colors'
+  const inputClass = 'w-full pl-10 pr-4 py-3 bg-n8n-dark-2 border border-n8n-dark-5 rounded-lg text-sm text-white placeholder:text-n8n-gray outline-none focus:border-[#EA4B71] focus:ring-1 focus:ring-[#EA4B71]/20 transition-all'
+  const labelClass = 'text-sm font-medium text-white mb-1.5 block'
+  const btnPrimary = 'w-full py-3 bg-[#EA4B71] hover:bg-[#d23d60] text-white rounded-lg font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed'
+  const linkClass = 'text-[#EA4B71] hover:text-[#d23d60] font-medium transition-colors'
+
+  function renderForm() {
+    if (view === 'verify-otp') {
+      return (
+        <form onSubmit={handleVerifyOtp} className="space-y-5">
+          <div>
+            <label className={labelClass}>Verification Code</label>
+            <input
+              type="text" inputMode="numeric" pattern="[0-9]*" maxLength={8}
+              value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+              className="w-full px-4 py-3 bg-n8n-dark-2 border border-n8n-dark-5 rounded-lg text-center text-lg tracking-[0.5em] text-white placeholder:text-n8n-gray outline-none focus:border-[#EA4B71] focus:ring-1 focus:ring-[#EA4B71]/20 transition-all"
+              placeholder="00000000" required
+            />
+          </div>
+          <button type="submit" disabled={loading || otp.length !== 8} className={btnPrimary}>
+            {loading ? 'Verifying...' : 'Verify Code'}
+          </button>
+          <button type="button" onClick={() => setView('sign-up')} className={'w-full text-sm ' + linkClass + ' text-center'}>
+            Back
+          </button>
+        </form>
+      )
+    }
+
+    if (view === 'sign-up') {
+      return (
+        <form onSubmit={handleSignUp} className="space-y-5">
+          <div>
+            <label className={labelClass}>Full Name</label>
+            <div className="relative">
+              <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-n8n-gray" />
+              <input type="text" className={inputClass} placeholder="Alex Morgan" />
+            </div>
+          </div>
+          <div>
+            <label className={labelClass}>Email Address</label>
+            <div className="relative">
+              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-n8n-gray" />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} placeholder="name@company.com" required />
+            </div>
+          </div>
+          <div>
+            <label className={labelClass}>Password</label>
+            <div className="relative">
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-n8n-gray" />
+              <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass + ' pr-10'} placeholder="••••••••" minLength={6} required />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-n8n-gray hover:text-white transition-colors">
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-xs text-n8n-gray mt-1.5">Must be at least 6 characters.</p>
+          </div>
+          <div>
+            <label className={labelClass}>Confirm Password</label>
+            <div className="relative">
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-n8n-gray" />
+              <input type={showConfirm ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={inputClass + ' pr-10'} placeholder="••••••••" minLength={6} required />
+              <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-n8n-gray hover:text-white transition-colors">
+                {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+          <button type="submit" disabled={loading} className={btnPrimary}>
+            {loading ? 'Creating account...' : 'Get Started'}
+          </button>
+          <p className="text-center text-sm text-n8n-gray">
+            Already have an account?{' '}
+            <button type="button" onClick={() => setView('sign-in')} className={linkClass}>Log In</button>
+          </p>
+        </form>
+      )
+    }
+
+    return (
+      <form onSubmit={handleSignIn} className="space-y-5">
+        <div>
+          <label className={labelClass}>Email Address</label>
+          <div className="relative">
+            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-n8n-gray" />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} placeholder="name@company.com" required />
+          </div>
+        </div>
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className={labelClass + ' mb-0'}>Password</label>
+            <button type="button" className="text-xs text-[#EA4B71] hover:text-[#d23d60] font-medium transition-colors">Forgot password?</button>
+          </div>
+          <div className="relative">
+            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-n8n-gray" />
+            <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass + ' pr-10'} placeholder="••••••••" required />
+            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-n8n-gray hover:text-white transition-colors">
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+        <button type="submit" disabled={loading} className={btnPrimary}>
+          {loading ? 'Signing in...' : 'Log In'}
+        </button>
+        <p className="text-center text-sm text-n8n-gray">
+          Don't have an account?{' '}
+          <button type="button" onClick={() => setView('sign-up')} className={linkClass}>Sign up for free</button>
+        </p>
+        {tgAvailable && (
+          <>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-n8n-dark-5" /></div>
+              <div className="relative flex justify-center text-xs"><span className="bg-n8n-dark-3 px-2 text-n8n-gray">or continue with</span></div>
+            </div>
+            <button type="button" onClick={handleTelegramSignIn} className="w-full py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2">
+              <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current"><path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+              Sign in with Telegram
+            </button>
+          </>
+        )}
+      </form>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-n8n-dark flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-n8n-dark-3 rounded-2xl shadow-lg p-8 border border-n8n-dark-4">
-        <h1 className="text-2xl font-bold text-center text-white mb-2">
-          n8n Dataset
-        </h1>
-        <p className="text-sm text-center text-n8n-gray mb-8">
-          {view === 'sign-in' && 'Sign in to your account'}
-          {view === 'sign-up' && 'Create a new account'}
-          {view === 'verify-otp' && 'Check your email for the verification code'}
-        </p>
-
-        {error && (
-          <div className="mb-4 p-3 bg-n8n-red/10 border border-n8n-red/30 rounded-lg text-sm text-n8n-red">
-            {error}
+      <div className="flex w-full max-w-[960px] min-h-[600px] rounded-xl overflow-hidden shadow-2xl">
+        <div className="hidden md:flex flex-1 relative bg-gradient-to-br from-[#EA4B71] to-[#040506] p-10 items-end">
+          <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[length:20px_20px]" />
+          <div className="relative z-10 max-w-[320px]">
+            <h2 className="text-3xl font-bold text-white mb-3">
+              {view === 'sign-in' ? 'Automate Without Limits' : 'Build Without Boundaries'}
+            </h2>
+            <p className="text-[#fce7ec] text-sm leading-relaxed">
+              {view === 'sign-in'
+                ? 'Connect your tools, build complex operational nodes, and deploy workflows seamlessly.'
+                : 'Create your account to design seamless integration architecture, spin up logic branches, and orchestrate apps.'}
+            </p>
           </div>
-        )}
-        {message && (
-          <div className="mb-4 p-3 bg-n8n-orange/10 border border-n8n-orange/30 rounded-lg text-sm text-n8n-orange-light">
-            {message}
-          </div>
-        )}
+        </div>
 
-        {view === 'verify-otp' ? (
-          <form onSubmit={handleVerifyOtp} className="space-y-4">
-            <div>
-              <label className={labelClass}>Verification Code</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={8}
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                className={inputClass + ' text-center text-lg tracking-widest'}
-                placeholder="00000000"
-                required
-              />
+        <div className="flex-[1.2] bg-n8n-dark-3 p-10 md:p-14 flex flex-col justify-center">
+          <div className="max-w-[420px] mx-auto w-full">
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-6">
+                <img src="/logo.png" alt="n8n" className="w-8 h-8" />
+                <span className="text-lg font-bold text-white">n8n Dataset</span>
+              </div>
+              <h1 className="text-2xl font-bold text-white mb-1.5">
+                {view === 'sign-in' ? 'Log In' : view === 'sign-up' ? 'Create Account' : 'Verify Email'}
+              </h1>
+              <p className="text-sm text-n8n-gray">
+                {view === 'sign-in' && 'Please enter your details to sign in to your dashboard.'}
+                {view === 'sign-up' && 'Get started with your datasets today.'}
+                {view === 'verify-otp' && 'Check your email for the verification code.'}
+              </p>
             </div>
-            <button
-              type="submit"
-              disabled={loading || otp.length !== 8}
-              className={btnPrimaryClass}
-            >
-              {loading ? 'Verifying...' : 'Verify Code'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setView('sign-up')}
-              className={'w-full text-sm ' + linkClass + ' text-center'}
-            >
-              Back
-            </button>
-          </form>
-        ) : view === 'sign-up' ? (
-          <form onSubmit={handleSignUp} className="space-y-4">
-            <div>
-              <label className={labelClass}>Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={inputClass}
-                placeholder="you@example.com"
-                required
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={inputClass}
-                placeholder="At least 6 characters"
-                minLength={6}
-                required
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Confirm Password</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className={inputClass}
-                placeholder="Repeat password"
-                minLength={6}
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className={btnPrimaryClass}
-            >
-              {loading ? 'Creating account...' : 'Create account'}
-            </button>
-            <div className="text-center text-sm text-n8n-gray">
-              Already have an account?{' '}
-              <button
-                type="button"
-                onClick={() => setView('sign-in')}
-                className={linkClass}
-              >
-                Sign in
-              </button>
-            </div>
-          </form>
-        ) : (
-          <form onSubmit={handleSignIn} className="space-y-4">
-            <div>
-              <label className={labelClass}>Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={inputClass}
-                placeholder="you@example.com"
-                required
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={inputClass}
-                placeholder="Enter your password"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className={btnPrimaryClass}
-            >
-              {loading ? 'Signing in...' : 'Sign in'}
-            </button>
-            <div className="text-center text-sm text-n8n-gray">
-              Don't have an account?{' '}
-              <button
-                type="button"
-                onClick={() => setView('sign-up')}
-                className={linkClass}
-              >
-                Sign up
-              </button>
-            </div>
-            {tgAvailable && (
-              <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-n8n-dark-4" />
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="bg-n8n-dark-3 px-2 text-n8n-gray">or</span>
-                </div>
+
+            {error && (
+              <div className="mb-5 p-3.5 bg-[#EA4B71]/10 border border-[#EA4B71]/25 rounded-lg flex items-start gap-2.5">
+                <span className="text-[#EA4B71] text-sm leading-5">{error}</span>
               </div>
             )}
-            {tgAvailable && (
-              <button
-                type="button"
-                onClick={handleTelegramSignIn}
-                className="w-full py-2 px-4 bg-sky-500 text-white rounded-lg font-medium hover:bg-sky-600 transition-colors flex items-center justify-center gap-2"
-              >
-                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current"><path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-                Sign in with Telegram
-              </button>
+            {message && (
+              <div className="mb-5 p-3.5 bg-[#EA4B71]/10 border border-[#EA4B71]/25 rounded-lg flex items-start gap-2.5">
+                <span className="text-[#EA4B71] text-sm leading-5">{message}</span>
+              </div>
             )}
-          </form>
-        )}
+
+            {renderForm()}
+          </div>
+        </div>
       </div>
     </div>
   )
