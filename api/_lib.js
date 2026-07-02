@@ -1,18 +1,16 @@
-/// <reference types="node" />
-
 import { createHmac } from 'node:crypto'
 
 const encoder = new TextEncoder()
 
-function base64url(str: string): string {
+function base64url(str) {
   return Buffer.from(str).toString('base64url')
 }
 
-function base64urlFromBytes(bytes: Uint8Array): string {
+function base64urlFromBytes(bytes) {
   return Buffer.from(bytes).toString('base64url')
 }
 
-export function signJwt(payload: Record<string, unknown>, secret: string): string {
+export function signJwt(payload, secret) {
   const header = { alg: 'HS256', typ: 'JWT' }
   const headerB64 = base64url(JSON.stringify(header))
   const payloadB64 = base64url(JSON.stringify(payload))
@@ -21,7 +19,7 @@ export function signJwt(payload: Record<string, unknown>, secret: string): strin
   return `${data}.${sig}`
 }
 
-export function verifyTelegramInitData(initData: string, botToken: string): Record<string, string> {
+export function verifyTelegramInitData(initData, botToken) {
   const params = new URLSearchParams(initData)
   const hash = params.get('hash')
   if (!hash) throw new Error('Missing hash in initData')
@@ -40,20 +38,14 @@ export function verifyTelegramInitData(initData: string, botToken: string): Reco
     throw new Error('Invalid initData hash')
   }
 
-  const result: Record<string, string> = {}
+  const result = {}
   for (const [k, v] of params.entries()) {
     result[k] = v
   }
   return result
 }
 
-export function parseUserFromInitData(initData: string): {
-  id: number
-  username: string | null
-  first_name: string | null
-  last_name: string | null
-  phone_number: string | null
-} {
+export function parseUserFromInitData(initData) {
   const params = new URLSearchParams(initData)
   const userRaw = params.get('user')
   if (!userRaw) throw new Error('Missing user in initData')

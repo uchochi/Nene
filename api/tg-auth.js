@@ -1,10 +1,8 @@
-/// <reference types="node" />
-
 import { randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import { verifyTelegramInitData, parseUserFromInitData, corsHeaders } from './_lib.js'
 
-export default async function handler(req: Request) {
+export default async function handler(req) {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders() })
   }
@@ -49,7 +47,7 @@ export default async function handler(req: Request) {
       .eq('telegram_id', telegramId)
       .single()
 
-    let supabaseUserId: string
+    let supabaseUserId
 
     if (existing?.supabase_user_id) {
       supabaseUserId = existing.supabase_user_id
