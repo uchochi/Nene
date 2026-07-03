@@ -1,6 +1,6 @@
 import { useWorkflowStore } from '../../store/workflowStore'
 import { validateJSONL, getStatistics, downloadJSONL } from '../../utils/jsonl'
-import { Download, BarChart3 } from 'lucide-react'
+import { Download, BarChart3, X } from 'lucide-react'
 import { isTMA, hapticFeedback } from '../../utils/tma'
 import { useState } from 'react'
 
@@ -9,6 +9,7 @@ export function DatasetPreview() {
   const addToHistory = useWorkflowStore(s => s.addToHistory)
   const workflowName = useWorkflowStore(s => s.workflowName)
   const [tab, setTab] = useState<'preview' | 'stats' | 'raw'>('preview')
+  const setDatasetResult = useWorkflowStore(s => s.setDatasetResult)
 
   if (!datasetResult) return null
 
@@ -41,6 +42,13 @@ export function DatasetPreview() {
               {entries.length} entries
             </span>
           </div>
+          <button
+            onClick={() => setDatasetResult(null)}
+            className="p-1 rounded-md hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-white transition-colors"
+            title="Close"
+          >
+            <X size={16} />
+          </button>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex bg-n8n-dark-4 rounded-lg p-0.5 flex-1 md:flex-none">
