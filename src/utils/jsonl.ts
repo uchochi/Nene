@@ -39,22 +39,15 @@ export function formatAsJSONL(entries: JSONLEntry[]): string {
 }
 
 export function downloadJSONL(content: string, filename: string): void {
-  try {
-    const blob = new Blob([content], { type: 'application/octet-stream' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.style.display = 'none'
-    document.body.appendChild(a)
-    a.click()
-    setTimeout(() => {
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-    }, 5000)
-  } catch {
-    window.open('data:text/plain;charset=utf-8,' + encodeURIComponent(content), '_blank')
-  }
+  const bom = '\uFEFF'
+  const dataUri = 'data:text/plain;charset=utf-8,' + encodeURIComponent(bom + content)
+  const a = document.createElement('a')
+  a.href = dataUri
+  a.download = filename
+  a.style.display = 'none'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
 }
 
 export function countEntries(content: string): number {
