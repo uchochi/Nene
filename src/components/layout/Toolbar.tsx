@@ -100,51 +100,89 @@ export function Toolbar({ onToggleSidebar }: ToolbarProps) {
 
       <div className="flex-1" />
 
-      {/* Import workflow */}
-      <button
-        onClick={handleImport}
-        className="btn-secondary flex items-center gap-1.5 text-xs"
-        title="Import workflow"
-      >
-        <Upload size={14} />
-        Import
-      </button>
+      {/* Desktop buttons */}
+      <div className="hidden md:flex items-center gap-2">
+        <button
+          onClick={handleImport}
+          className="btn-secondary flex items-center gap-1.5 text-xs"
+          title="Import workflow"
+        >
+          <Upload size={14} />
+          Import
+        </button>
 
-      <button
-        onClick={handleRun}
-        disabled={isRunning || nodes.length === 0}
-        className="btn-primary flex items-center gap-1.5 text-xs"
-      >
-        <Play size={14} />
-        {isRunning ? 'Running...' : 'Run'}
-      </button>
+        <button
+          onClick={handleRun}
+          disabled={isRunning || nodes.length === 0}
+          className="btn-primary flex items-center gap-1.5 text-xs"
+        >
+          <Play size={14} />
+          {isRunning ? 'Running...' : 'Run'}
+        </button>
 
-      <button
-        onClick={saveWorkflow}
-        className="btn-secondary flex items-center gap-1.5 text-xs"
-        title="Save workflow"
-      >
-        <Save size={14} />
-        Save
-      </button>
+        <button
+          onClick={saveWorkflow}
+          className="btn-secondary flex items-center gap-1.5 text-xs"
+          title="Save workflow"
+        >
+          <Save size={14} />
+          Save
+        </button>
 
-      <button
-        onClick={handleExport}
-        disabled={!datasetResult}
-        className="btn-secondary flex items-center gap-1.5 text-xs"
-        title="Export dataset"
-      >
-        <FileDown size={14} />
-        Export
-      </button>
+        <button
+          onClick={handleExport}
+          disabled={!datasetResult}
+          className="btn-secondary flex items-center gap-1.5 text-xs"
+          title="Export dataset"
+        >
+          <FileDown size={14} />
+          Export
+        </button>
 
-      <button
-        onClick={clearWorkflow}
-        className="p-1.5 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-n8n-red transition-colors"
-        title="Clear canvas"
-      >
-        <Trash2 size={16} />
-      </button>
+        <button
+          onClick={clearWorkflow}
+          className="p-1.5 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-n8n-red transition-colors"
+          title="Clear canvas"
+        >
+          <Trash2 size={16} />
+        </button>
+      </div>
+
+      {/* Mobile Actions dropdown */}
+      <details className="md:hidden group relative">
+        <summary className="list-none flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-n8n-dark-4 hover:bg-n8n-dark-5 text-xs font-medium text-n8n-gray-light hover:text-white cursor-pointer transition-colors">
+          Actions
+          <svg className="w-3 h-3 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </summary>
+        <div className="absolute top-full right-0 mt-1.5 bg-n8n-dark-2 border border-n8n-dark-4 rounded-lg p-2 flex flex-col gap-1.5 min-w-[150px] z-50 shadow-xl">
+          <button onClick={handleImport} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-dark-4 hover:bg-n8n-dark-5 text-xs font-medium text-n8n-gray-light hover:text-white transition-colors">
+            <Upload size={14} />
+            Import
+          </button>
+
+          <button onClick={handleRun} disabled={isRunning || nodes.length === 0} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-red hover:bg-n8n-red/80 text-xs font-medium text-white transition-colors disabled:opacity-50">
+            <Play size={14} />
+            {isRunning ? 'Running...' : 'Run'}
+          </button>
+
+          <button onClick={saveWorkflow} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-dark-4 hover:bg-n8n-dark-5 text-xs font-medium text-n8n-gray-light hover:text-white transition-colors">
+            <Save size={14} />
+            Save
+          </button>
+
+          <button onClick={handleExport} disabled={!datasetResult} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-dark-4 hover:bg-n8n-dark-5 text-xs font-medium text-n8n-gray-light hover:text-white transition-colors disabled:opacity-40">
+            <FileDown size={14} />
+            Export
+          </button>
+
+          <button onClick={clearWorkflow} className="flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-n8n-dark-4 text-xs font-medium text-n8n-gray-light hover:text-n8n-red transition-colors">
+            <Trash2 size={14} />
+            Delete
+          </button>
+        </div>
+      </details>
     </div>
   )
 }
