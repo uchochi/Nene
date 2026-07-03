@@ -39,15 +39,42 @@ export function formatAsJSONL(entries: JSONLEntry[]): string {
 }
 
 export function downloadJSONL(content: string, filename: string): void {
-  const bom = '\uFEFF'
-  const dataUri = 'data:text/plain;charset=utf-8,' + encodeURIComponent(bom + content)
-  const a = document.createElement('a')
-  a.href = dataUri
-  a.download = filename
-  a.style.display = 'none'
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+  try {
+    // Strategy 1: blob URL + anchor click (most standards-compliant)
+    const blob = new Blob([content], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.style.display = 'none'
+    document.body.appendChild(a)
+    a.click()
+    setTimeout(() => {
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    }, 5000)
+    return
+  } catch {}
+
+  try {
+    // Strategy 2: data URI fallback
+    const dataUri = 'data:text/plain;charset=utf-8,' + encodeURIComponent(content)
+    const a = document.createElement('a')
+    a.href = dataUri
+    a.download = filename
+    a.style.display = 'none'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    return
+  } catch {}
+
+  try {
+    // Strategy 3: open in new window (works in most WebViews)
+    const blob = new Blob([content], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    window.open(url)
+  } catch {}
 }
 
 export function countEntries(content: string): number {
