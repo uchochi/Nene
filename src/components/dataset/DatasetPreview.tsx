@@ -32,19 +32,21 @@ export function DatasetPreview() {
 
   return (
     <div className="panel m-3 flex flex-col max-h-[300px]">
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-n8n-dark-4">
-        <div className="flex items-center gap-2">
-          <BarChart3 size={16} className="text-n8n-orange" />
-          <span className="text-sm font-semibold text-white">Dataset Output</span>
-          <span className="text-xs text-n8n-gray-light bg-n8n-dark-4 px-2 py-0.5 rounded-full">
-            {entries.length} entries
-          </span>
+      <div className="px-4 py-2.5 border-b border-n8n-dark-4 space-y-2 md:space-y-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BarChart3 size={16} className="text-n8n-orange" />
+            <span className="text-sm font-semibold text-white">Dataset Output</span>
+            <span className="text-xs text-n8n-gray-light bg-n8n-dark-4 px-2 py-0.5 rounded-full">
+              {entries.length} entries
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex bg-n8n-dark-4 rounded-lg p-0.5">
+          <div className="flex bg-n8n-dark-4 rounded-lg p-0.5 flex-1 md:flex-none">
             <button
               onClick={() => setTab('preview')}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+              className={`flex-1 md:flex-none px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 tab === 'preview' ? 'bg-n8n-dark-3 text-white' : 'text-n8n-gray-light hover:text-white'
               }`}
             >
@@ -52,7 +54,7 @@ export function DatasetPreview() {
             </button>
             <button
               onClick={() => setTab('stats')}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+              className={`flex-1 md:flex-none px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 tab === 'stats' ? 'bg-n8n-dark-3 text-white' : 'text-n8n-gray-light hover:text-white'
               }`}
             >
@@ -60,7 +62,7 @@ export function DatasetPreview() {
             </button>
             <button
               onClick={() => setTab('raw')}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+              className={`flex-1 md:flex-none px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 tab === 'raw' ? 'bg-n8n-dark-3 text-white' : 'text-n8n-gray-light hover:text-white'
               }`}
             >
@@ -69,7 +71,7 @@ export function DatasetPreview() {
           </div>
           <button
             onClick={handleDownload}
-            className="btn-primary flex items-center gap-1.5 text-xs px-3 py-1.5"
+            className="btn-primary flex items-center gap-1.5 text-xs px-3 py-1.5 whitespace-nowrap"
           >
             <Download size={14} />
             Download
