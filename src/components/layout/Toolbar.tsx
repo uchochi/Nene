@@ -150,7 +150,7 @@ export function Toolbar({ onToggleSidebar }: ToolbarProps) {
 
       {/* Mobile Actions dropdown */}
       <details className="md:hidden group relative">
-        <summary className="list-none flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-n8n-dark-4 hover:bg-n8n-dark-5 text-xs font-medium text-n8n-gray-light hover:text-white cursor-pointer transition-colors">
+        <summary className="list-none flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-700 hover:bg-green-600 text-xs font-medium text-white cursor-pointer transition-colors">
           Actions
           <svg className="w-3 h-3 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="6 9 12 15 18 9" />
