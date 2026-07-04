@@ -19,7 +19,7 @@ export default function App() {
   const datasetResult = useWorkflowStore(s => s.datasetResult)
   const wfInitialized = useWorkflowStore(s => s.initialized)
   const wfInitialize = useWorkflowStore(s => s.initialize)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768)
   const user = useAuthStore(s => s.user)
   const loading = useAuthStore(s => s.loading)
   const initialized = useAuthStore(s => s.initialized)
