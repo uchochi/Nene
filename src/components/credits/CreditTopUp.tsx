@@ -229,7 +229,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="bg-n8n-dark-2 border border-n8n-dark-4 rounded-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
         {/* header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-n8n-dark-4">

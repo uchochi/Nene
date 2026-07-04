@@ -130,7 +130,10 @@ export function Sidebar({ isOpen, onClose, onBuyCredits, onOpenSettings }: Sideb
   if (!isOpen) return null
 
   return (
-    <div className="w-64 bg-n8n-dark-2 border-r border-n8n-dark-4 flex flex-col h-full overflow-hidden flex-shrink-0">
+    <>
+      {/* mobile overlay — tap to close sidebar */}
+      <div className="fixed inset-0 bg-black/40 z-10 lg:hidden" onClick={onClose} />
+      <div className="w-64 bg-n8n-dark-2 border-r border-n8n-dark-4 flex flex-col h-full overflow-hidden flex-shrink-0 relative z-20">
       {/* hidden file input for import */}
       <input
         ref={importInputRef}
@@ -246,5 +249,6 @@ export function Sidebar({ isOpen, onClose, onBuyCredits, onOpenSettings }: Sideb
         </button>
       </div>
     </div>
+    </>
   )
 }

@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useWorkflowStore } from '../../store/workflowStore'
 import { useCreditStore } from '../../store/creditStore'
 import { Play, Save, Trash2, Menu, FileDown, Upload } from 'lucide-react'
@@ -25,6 +25,21 @@ export function Toolbar({ onToggleSidebar, onBuyCredits }: ToolbarProps) {
   const activeWorkflowId = useWorkflowStore(s => s.activeWorkflowId)
   const importWorkflow = useWorkflowStore(s => s.importWorkflow)
   const importInputRef = useRef<HTMLInputElement>(null)
+
+  const [showMobileActions, setShowMobileActions] = useState(false)
+  const mobileActionsRef = useRef<HTMLDivElement>(null)
+
+  /* close mobile dropdown on outside click */
+  useEffect(() => {
+    if (!showMobileActions) return
+    const handler = (e: MouseEvent) => {
+      if (mobileActionsRef.current && !mobileActionsRef.current.contains(e.target as Node)) {
+        setShowMobileActions(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showMobileActions])
 
   const canAfford = useCreditStore(s => s.canAfford)
   const deductCredits = useCreditStore(s => s.deductCredits)
@@ -169,40 +184,46 @@ export function Toolbar({ onToggleSidebar, onBuyCredits }: ToolbarProps) {
         </div>
 
         {/* Mobile Actions dropdown */}
-        <details className="md:hidden group relative">
-          <summary className="list-none flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-700 hover:bg-green-600 text-xs font-medium text-white cursor-pointer transition-colors">
+        <div className="md:hidden relative" ref={mobileActionsRef}>
+          <button
+            onClick={() => setShowMobileActions(v => !v)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-700 hover:bg-green-600 text-xs font-medium text-white transition-colors"
+          >
             Actions
-            <svg className="w-3 h-3 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg className={`w-3 h-3 transition-transform ${showMobileActions ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="6 9 12 15 18 9" />
             </svg>
-          </summary>
-          <div className="absolute top-full right-0 mt-1.5 bg-n8n-dark-2 border border-n8n-dark-4 rounded-lg p-2 flex flex-col gap-1.5 min-w-[150px] z-50 shadow-xl">
-            <button onClick={handleImport} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-dark-4 hover:bg-n8n-dark-5 text-xs font-medium text-n8n-gray-light hover:text-white transition-colors">
-              <Upload size={14} />
-              Import
-            </button>
+          </button>
 
-            <button onClick={handleRun} disabled={isRunning || nodes.length === 0} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-red hover:bg-n8n-red/80 text-xs font-medium text-white transition-colors disabled:opacity-50">
-              <Play size={14} />
-              {isRunning ? 'Running...' : 'Run'}
-            </button>
+          {showMobileActions && (
+            <div className="absolute top-full right-0 mt-1.5 bg-n8n-dark-2 border border-n8n-dark-4 rounded-lg p-2 flex flex-col gap-1.5 min-w-[150px] z-50 shadow-xl">
+              <button onClick={() => { handleImport(); setShowMobileActions(false) }} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-dark-4 hover:bg-n8n-dark-5 text-xs font-medium text-n8n-gray-light hover:text-white transition-colors">
+                <Upload size={14} />
+                Import
+              </button>
 
-            <button onClick={saveWorkflow} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-dark-4 hover:bg-n8n-dark-5 text-xs font-medium text-n8n-gray-light hover:text-white transition-colors">
-              <Save size={14} />
-              Save
-            </button>
+              <button onClick={() => { handleRun(); setShowMobileActions(false) }} disabled={isRunning || nodes.length === 0} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-red hover:bg-n8n-red/80 text-xs font-medium text-white transition-colors disabled:opacity-50">
+                <Play size={14} />
+                {isRunning ? 'Running...' : 'Run'}
+              </button>
 
-            <button onClick={handleExport} disabled={!datasetResult} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-dark-4 hover:bg-n8n-dark-5 text-xs font-medium text-n8n-gray-light hover:text-white transition-colors disabled:opacity-40">
-              <FileDown size={14} />
-              Export
-            </button>
+              <button onClick={() => { saveWorkflow(); setShowMobileActions(false) }} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-dark-4 hover:bg-n8n-dark-5 text-xs font-medium text-n8n-gray-light hover:text-white transition-colors">
+                <Save size={14} />
+                Save
+              </button>
 
-            <button onClick={clearWorkflow} className="flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-n8n-dark-4 text-xs font-medium text-n8n-gray-light hover:text-n8n-red transition-colors">
-              <Trash2 size={14} />
-              Delete
-            </button>
-          </div>
-        </details>
+              <button onClick={() => { handleExport(); setShowMobileActions(false) }} disabled={!datasetResult} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-dark-4 hover:bg-n8n-dark-5 text-xs font-medium text-n8n-gray-light hover:text-white transition-colors disabled:opacity-40">
+                <FileDown size={14} />
+                Export
+              </button>
+
+              <button onClick={() => { clearWorkflow(); setShowMobileActions(false) }} className="flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-n8n-dark-4 text-xs font-medium text-n8n-gray-light hover:text-n8n-red transition-colors">
+                <Trash2 size={14} />
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     )
   }
