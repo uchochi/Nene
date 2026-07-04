@@ -39,42 +39,54 @@ export function formatAsJSONL(entries: JSONLEntry[]): string {
 }
 
 export function downloadJSONL(content: string, filename: string): void {
-  try {
-    // Strategy 1: blob URL + anchor click (most standards-compliant)
-    const blob = new Blob([content], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.style.display = 'none'
-    document.body.appendChild(a)
-    a.click()
-    setTimeout(() => {
+  // Strategy 1: blob URL + anchor click
+  const tryBlob = (): boolean => {
+    try {
+      const blob = new Blob([content], { type: 'text/plain' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.style.display = 'none'
+      document.body.appendChild(a)
+      a.click()
+      setTimeout(() => {
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      }, 5000)
+      return true
+    } catch { return false }
+  }
+
+  // Strategy 2: data URI fallback
+  const tryDataUri = (): boolean => {
+    try {
+      const dataUri = 'data:text/plain;charset=utf-8,' + encodeURIComponent(content)
+      const a = document.createElement('a')
+      a.href = dataUri
+      a.download = filename
+      a.style.display = 'none'
+      document.body.appendChild(a)
+      a.click()
       document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-    }, 5000)
-    return
-  } catch {}
+      return true
+    } catch { return false }
+  }
 
-  try {
-    // Strategy 2: data URI fallback
-    const dataUri = 'data:text/plain;charset=utf-8,' + encodeURIComponent(content)
-    const a = document.createElement('a')
-    a.href = dataUri
-    a.download = filename
-    a.style.display = 'none'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    return
-  } catch {}
+  // Strategy 3: open in new window
+  const tryNewWindow = (): boolean => {
+    try {
+      const blob = new Blob([content], { type: 'text/plain' })
+      const url = URL.createObjectURL(blob)
+      window.open(url)
+      return true
+    } catch { return false }
+  }
 
-  try {
-    // Strategy 3: open in new window (works in most WebViews)
-    const blob = new Blob([content], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    window.open(url)
-  } catch {}
+  if (tryBlob()) return
+  if (tryDataUri()) return
+  if (tryNewWindow()) return
+  throw new Error('All download strategies failed')
 }
 
 export function countEntries(content: string): number {

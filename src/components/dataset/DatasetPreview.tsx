@@ -21,19 +21,25 @@ export function DatasetPreview() {
   const handleDownload = () => {
     try {
       downloadJSONL(datasetResult, filename())
-      addToHistory({
-        id: Date.now().toString(),
-        timestamp: Date.now(),
-        workflowName,
-        rowCount: entries.length,
-        outputPreview: datasetResult.slice(0, 200),
-      })
-      if (isTMA()) hapticFeedback('success')
-      setDownloadMsg('Downloaded!')
     } catch {
-      navigator.clipboard.writeText(datasetResult)
-      setDownloadMsg('Copied to clipboard')
+      try {
+        navigator.clipboard.writeText(datasetResult)
+        setDownloadMsg('Copied to clipboard')
+        setTimeout(() => setDownloadMsg(null), 3000)
+      } catch {
+        /* clipboard also unavailable — nothing more we can do */
+      }
+      return
     }
+    addToHistory({
+      id: Date.now().toString(),
+      timestamp: Date.now(),
+      workflowName,
+      rowCount: entries.length,
+      outputPreview: datasetResult.slice(0, 200),
+    })
+    if (isTMA()) hapticFeedback('success')
+    setDownloadMsg('Downloaded!')
     setTimeout(() => setDownloadMsg(null), 3000)
   }
 
