@@ -1,6 +1,6 @@
 import { useWorkflowStore } from '../../store/workflowStore'
-import { validateJSONL, getStatistics, downloadJSONL } from '../../utils/jsonl'
-import { Download, BarChart3, X } from 'lucide-react'
+import { validateJSONL, getStatistics } from '../../utils/jsonl'
+import { Copy, BarChart3, X } from 'lucide-react'
 import { isTMA, hapticFeedback } from '../../utils/tma'
 import { useState } from 'react'
 
@@ -16,34 +16,25 @@ export function DatasetPreview() {
   const { entries } = validateJSONL(datasetResult)
   const stats = getStatistics(entries)
 
-  const [downloadMsg, setDownloadMsg] = useState<string | null>(null)
+  const [copyMsg, setCopyMsg] = useState<string | null>(null)
 
-  const handleDownload = () => {
+  const handleCopy = async () => {
     try {
-      downloadJSONL(datasetResult, filename())
+      await navigator.clipboard.writeText(datasetResult)
+      addToHistory({
+        id: Date.now().toString(),
+        timestamp: Date.now(),
+        workflowName,
+        rowCount: entries.length,
+        outputPreview: datasetResult.slice(0, 200),
+      })
+      if (isTMA()) hapticFeedback('success')
+      setCopyMsg('Copied!')
     } catch {
-      try {
-        navigator.clipboard.writeText(datasetResult)
-        setDownloadMsg('Copied to clipboard')
-        setTimeout(() => setDownloadMsg(null), 3000)
-      } catch {
-        /* clipboard also unavailable — nothing more we can do */
-      }
-      return
+      setCopyMsg('Failed to copy')
     }
-    addToHistory({
-      id: Date.now().toString(),
-      timestamp: Date.now(),
-      workflowName,
-      rowCount: entries.length,
-      outputPreview: datasetResult.slice(0, 200),
-    })
-    if (isTMA()) hapticFeedback('success')
-    setDownloadMsg('Downloaded!')
-    setTimeout(() => setDownloadMsg(null), 3000)
+    setTimeout(() => setCopyMsg(null), 3000)
   }
-
-  const filename = () => `${workflowName.replace(/\s+/g, '_').toLowerCase()}_dataset.jsonl`
 
   const previewLines = datasetResult.split('\n').filter(l => l.trim()).slice(0, 5)
 
@@ -94,14 +85,14 @@ export function DatasetPreview() {
             </button>
           </div>
           <button
-            onClick={handleDownload}
+            onClick={handleCopy}
             className="btn-primary flex items-center gap-1.5 text-xs px-3 py-1.5 whitespace-nowrap"
           >
-            <Download size={14} />
-            Download
+            <Copy size={14} />
+            Copy
           </button>
-          {downloadMsg && (
-            <span className="text-xs text-green-400 font-medium whitespace-nowrap">{downloadMsg}</span>
+          {copyMsg && (
+            <span className="text-xs text-green-400 font-medium whitespace-nowrap">{copyMsg}</span>
           )}
         </div>
       </div>
