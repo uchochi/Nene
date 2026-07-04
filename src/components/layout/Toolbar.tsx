@@ -1,18 +1,17 @@
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import { useWorkflowStore } from '../../store/workflowStore'
 import { useCreditStore } from '../../store/creditStore'
 import { Play, Save, Trash2, Menu, FileDown, Upload } from 'lucide-react'
 import { downloadJSONL } from '../../utils/jsonl'
 import { isTMA, hapticFeedback } from '../../utils/tma'
 import { COST_PER_RUN, COST_PER_EXPORT } from '../../utils/credits'
-import { CreditBalance } from '../credits/CreditBalance'
-import { CreditTopUp } from '../credits/CreditTopUp'
 
 interface ToolbarProps {
   onToggleSidebar: () => void
+  onBuyCredits: (reason?: string) => void
 }
 
-export function Toolbar({ onToggleSidebar }: ToolbarProps) {
+export function Toolbar({ onToggleSidebar, onBuyCredits }: ToolbarProps) {
   const workflowName = useWorkflowStore(s => s.workflowName)
   const setWorkflowName = useWorkflowStore(s => s.setWorkflowName)
   const runWorkflow = useWorkflowStore(s => s.runWorkflow)
@@ -31,13 +30,9 @@ export function Toolbar({ onToggleSidebar }: ToolbarProps) {
   const deductCredits = useCreditStore(s => s.deductCredits)
   const balance = useCreditStore(s => s.balance)
 
-  const [showTopUp, setShowTopUp] = useState(false)
-  const [topUpReason, setTopUpReason] = useState('')
-
   const handleRun = async () => {
     if (!canAfford(COST_PER_RUN)) {
-      setTopUpReason(`You need at least ${COST_PER_RUN} credit to run a workflow. You have ${balance}.`)
-      setShowTopUp(true)
+      onBuyCredits(`You need at least ${COST_PER_RUN} credit to run a workflow. You have ${balance}.`)
       return
     }
 
@@ -50,8 +45,7 @@ export function Toolbar({ onToggleSidebar }: ToolbarProps) {
     if (!datasetResult) return
 
     if (!canAfford(COST_PER_EXPORT)) {
-      setTopUpReason(`You need at least ${COST_PER_EXPORT} credit to export. You have ${balance}.`)
-      setShowTopUp(true)
+      onBuyCredits(`You need at least ${COST_PER_EXPORT} credit to export. You have ${balance}.`)
       return
     }
 
@@ -89,9 +83,6 @@ export function Toolbar({ onToggleSidebar }: ToolbarProps) {
   }
 
   return (
-    <>
-      <CreditTopUp open={showTopUp} onClose={() => setShowTopUp(false)} reason={topUpReason} />
-
       <div className="h-12 bg-n8n-dark-2 border-b border-n8n-dark-4 flex items-center px-3 gap-2 flex-shrink-0">
         <input
           ref={importInputRef}
@@ -128,9 +119,6 @@ export function Toolbar({ onToggleSidebar }: ToolbarProps) {
         )}
 
         <div className="flex-1" />
-
-        {/* Credit balance */}
-        <CreditBalance onBuyCredits={() => { setTopUpReason(''); setShowTopUp(true) }} />
 
         {/* Desktop buttons */}
         <div className="hidden md:flex items-center gap-2">
@@ -216,6 +204,5 @@ export function Toolbar({ onToggleSidebar }: ToolbarProps) {
           </div>
         </details>
       </div>
-    </>
-  )
-}
+    )
+  }

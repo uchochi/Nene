@@ -10,6 +10,7 @@ interface AuthState {
   setUser: (user: User | null) => void
   initialize: () => Promise<void>
   signOut: () => Promise<void>
+  updatePassword: (newPassword: string) => Promise<void>
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -41,5 +42,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (!supabase) return
     await supabase.auth.signOut()
     set({ user: null })
+  },
+
+  updatePassword: async (newPassword: string) => {
+    if (!supabase) throw new Error('Supabase not configured')
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) throw error
   },
 }))

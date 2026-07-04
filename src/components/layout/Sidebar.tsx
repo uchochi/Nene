@@ -3,12 +3,15 @@ import { NodePalette } from '../nodes/NodePalette'
 import { useWorkflowStore, type NodeType, type SavedWorkflow } from '../../store/workflowStore'
 import {
   History, X, Plus, Download, Upload,
-  FileText, Copy, Trash2, Edit3,
+  FileText, Copy, Trash2, Edit3, Settings,
 } from 'lucide-react'
+import { CreditBalance } from '../credits/CreditBalance'
 
 interface SidebarProps {
   isOpen: boolean
   onClose: () => void
+  onBuyCredits: (reason?: string) => void
+  onOpenSettings: () => void
 }
 
 function WorkflowRow({ wf }: { wf: SavedWorkflow }) {
@@ -89,7 +92,7 @@ function RenameButton({ wf, renameWorkflow }: { wf: SavedWorkflow; renameWorkflo
   )
 }
 
-export function Sidebar({ isOpen, onClose }: SidebarProps) {
+export function Sidebar({ isOpen, onClose, onBuyCredits, onOpenSettings }: SidebarProps) {
   const addNode = useWorkflowStore(s => s.addNode)
   const history = useWorkflowStore(s => s.history)
   const clearHistory = useWorkflowStore(s => s.clearHistory)
@@ -229,6 +232,18 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Footer: credits + settings */}
+      <div className="border-t border-n8n-dark-4 px-3 py-2.5 flex items-center justify-between">
+        <CreditBalance onBuyCredits={() => onBuyCredits()} />
+        <button
+          onClick={onOpenSettings}
+          className="p-1.5 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-white transition-colors"
+          title="Settings"
+        >
+          <Settings size={16} />
+        </button>
       </div>
     </div>
   )

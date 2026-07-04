@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { ReactFlowProvider } from 'reactflow'
 import { Sidebar } from './components/layout/Sidebar'
 import { Toolbar } from './components/layout/Toolbar'
@@ -7,6 +7,8 @@ import { ConfigPanel } from './components/nodes/ConfigPanel'
 import { OnboardingScreen } from './components/onboarding/OnboardingScreen'
 import { DatasetPreview } from './components/dataset/DatasetPreview'
 import { AuthScreen } from './components/auth/AuthScreen'
+import { CreditTopUp } from './components/credits/CreditTopUp'
+import { SettingsModal } from './components/settings/SettingsModal'
 import { useWorkflowStore } from './store/workflowStore'
 import { useAuthStore } from './store/authStore'
 import { initTMA } from './utils/tma'
@@ -23,6 +25,15 @@ export default function App() {
   const initialized = useAuthStore(s => s.initialized)
   const initialize = useAuthStore(s => s.initialize)
   const configError = useAuthStore(s => s.configError)
+
+  const [showTopUp, setShowTopUp] = useState(false)
+  const [topUpReason, setTopUpReason] = useState('')
+  const [showSettings, setShowSettings] = useState(false)
+
+  const onBuyCredits = useCallback((reason = '') => {
+    setTopUpReason(reason)
+    setShowTopUp(true)
+  }, [])
 
   useEffect(() => {
     initTMA()
@@ -68,10 +79,13 @@ export default function App() {
 
   return (
     <ReactFlowProvider>
+      <CreditTopUp open={showTopUp} onClose={() => setShowTopUp(false)} reason={topUpReason} />
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+
       <div className="h-screen w-screen flex flex-col overflow-hidden bg-n8n-dark">
-        <Toolbar onToggleSidebar={() => setSidebarOpen(v => !v)} />
+        <Toolbar onToggleSidebar={() => setSidebarOpen(v => !v)} onBuyCredits={onBuyCredits} />
         <div className="flex flex-1 overflow-hidden">
-          <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+          <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} onBuyCredits={onBuyCredits} onOpenSettings={() => setShowSettings(true)} />
           <div className="flex-1 flex flex-col overflow-hidden relative">
             <Canvas />
             {datasetResult && <DatasetPreview />}
