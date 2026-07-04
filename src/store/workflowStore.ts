@@ -180,11 +180,11 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   selectedNodeId: null,
   workflowName: 'Untitled Workflow',
   isRunning: false,
-  onboardingShown: false,
+  onboardingShown: !!localStorage.getItem('n8n-dataset-onboarding-seen'),
   apiKey: getEnvApiKey(),
   datasetResult: null,
   history: [],
-  showOnboarding: true,
+  showOnboarding: !localStorage.getItem('n8n-dataset-onboarding-seen'),
   savedWorkflows: [],
   activeWorkflowId: null,
   isDirty: false,
@@ -267,8 +267,14 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   },
   setWorkflowName: (name) => set({ workflowName: name, isDirty: true }),
   setRunning: (running) => set({ isRunning: running }),
-  setOnboardingShown: (shown) => set({ onboardingShown: shown }),
-  setShowOnboarding: (show) => set({ showOnboarding: show }),
+  setOnboardingShown: (shown) => {
+    localStorage.setItem('n8n-dataset-onboarding-seen', shown ? 'true' : '')
+    set({ onboardingShown: shown })
+  },
+  setShowOnboarding: (show) => {
+    if (!show) localStorage.setItem('n8n-dataset-onboarding-seen', 'true')
+    set({ showOnboarding: show })
+  },
   setApiKey: (key) => set({ apiKey: key }),
   setDatasetResult: (result) => set({ datasetResult: result }),
   markClean: () => set({ isDirty: false }),
