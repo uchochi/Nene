@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
+import { useAuthStore } from './authStore'
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -231,7 +232,6 @@ export const useCreditStore = create<CreditState>((set, get) => ({
 
 function getCurrentUserId(): string | null {
   try {
-    const { useAuthStore } = require('./authStore')
     return useAuthStore.getState().user?.id || null
   } catch {
     return null
