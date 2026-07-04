@@ -10,6 +10,7 @@ import { AuthScreen } from './components/auth/AuthScreen'
 import { CreditTopUp } from './components/credits/CreditTopUp'
 import { SettingsModal } from './components/settings/SettingsModal'
 import { useWorkflowStore } from './store/workflowStore'
+import { useCreditStore } from './store/creditStore'
 import { useAuthStore } from './store/authStore'
 import { initTMA } from './utils/tma'
 
@@ -25,6 +26,9 @@ export default function App() {
   const initialized = useAuthStore(s => s.initialized)
   const initialize = useAuthStore(s => s.initialize)
   const configError = useAuthStore(s => s.configError)
+
+  const creditInitialized = useCreditStore(s => s.initialized)
+  const creditInitialize = useCreditStore(s => s.initialize)
 
   const [showTopUp, setShowTopUp] = useState(false)
   const [topUpReason, setTopUpReason] = useState('')
@@ -45,6 +49,12 @@ export default function App() {
       wfInitialize(user.id)
     }
   }, [user, wfInitialized, wfInitialize])
+
+  useEffect(() => {
+    if (user && !creditInitialized) {
+      creditInitialize(user.id)
+    }
+  }, [user, creditInitialized, creditInitialize])
 
   if (!initialized || loading) {
     return (
