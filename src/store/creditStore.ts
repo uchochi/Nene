@@ -95,15 +95,37 @@ export const useCreditStore = create<CreditState>((set, get) => ({
           .limit(100)
 
         if (profile) {
+          /* Prefer local balance when it's lower — local has the most recent
+             deductions that may not have synced to Supabase yet */
+          const balance = local.balance < profile.balance
+            ? local.balance
+            : profile.balance
+          const totalPurchased = local.totalPurchased > profile.total_purchased
+            ? local.totalPurchased
+            : profile.total_purchased
+
           set({
-            balance: profile.balance,
-            totalPurchased: profile.total_purchased,
+            balance,
+            totalPurchased,
             transactions: (txns || []).map(mapTxn),
             loading: false,
             initialized: true,
           })
           /* sync local */
-          saveLocal({ balance: profile.balance, totalPurchased: profile.total_purchased, transactions: (txns || []).map(mapTxn) })
+          saveLocal({ balance, totalPurchased, transactions: (txns || []).map(mapTxn) })
+
+          /* If local had a lower balance, push that correction to Supabase */
+          if (balance !== profile.balance && supabase) {
+            try {
+              await supabase.from('user_credits').upsert({
+                user_id: userId,
+                balance,
+                total_purchased: totalPurchased,
+                updated_at: new Date().toISOString(),
+              }, { onConflict: 'user_id' })
+            } catch { /* best-effort */ }
+          }
+
           return
         }
       } catch { /* fall through to local */ }
@@ -122,24 +144,27 @@ export const useCreditStore = create<CreditState>((set, get) => ({
   },
 
   deductCredits: async (amount: number) => {
-    const { balance, transactions } = get()
+    const { balance, transactions, totalPurchased } = get()
     if (balance < amount) return false
 
     const newBalance = balance - amount
     set({ balance: newBalance })
-    saveLocal({ balance: newBalance, totalPurchased: get().totalPurchased, transactions })
+    saveLocal({ balance: newBalance, totalPurchased, transactions })
 
-    /* sync to supabase in background */
+    /* sync to supabase (await it so balance persists across reloads) */
     const userId = getCurrentUserId()
     if (userId && supabase) {
       try {
-        await supabase.from('user_credits').upsert({
+        const { error } = await supabase.from('user_credits').upsert({
           user_id: userId,
           balance: newBalance,
-          total_purchased: get().totalPurchased,
+          total_purchased: totalPurchased,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id' })
-      } catch { /* ignore */ }
+        if (error) throw error
+      } catch (e) {
+        console.error('Failed to sync credit deduction:', e)
+      }
     }
 
     return true
