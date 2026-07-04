@@ -1,8 +1,12 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useWorkflowStore } from '../../store/workflowStore'
+import { useCreditStore } from '../../store/creditStore'
 import { Play, Save, Trash2, Menu, FileDown, Upload } from 'lucide-react'
 import { downloadJSONL } from '../../utils/jsonl'
 import { isTMA, hapticFeedback } from '../../utils/tma'
+import { COST_PER_RUN, COST_PER_EXPORT } from '../../utils/credits'
+import { CreditBalance } from '../credits/CreditBalance'
+import { CreditTopUp } from '../credits/CreditTopUp'
 
 interface ToolbarProps {
   onToggleSidebar: () => void
@@ -23,15 +27,37 @@ export function Toolbar({ onToggleSidebar }: ToolbarProps) {
   const importWorkflow = useWorkflowStore(s => s.importWorkflow)
   const importInputRef = useRef<HTMLInputElement>(null)
 
+  const canAfford = useCreditStore(s => s.canAfford)
+  const deductCredits = useCreditStore(s => s.deductCredits)
+  const balance = useCreditStore(s => s.balance)
+
+  const [showTopUp, setShowTopUp] = useState(false)
+  const [topUpReason, setTopUpReason] = useState('')
+
   const handleRun = async () => {
+    if (!canAfford(COST_PER_RUN)) {
+      setTopUpReason(`You need at least ${COST_PER_RUN} credit to run a workflow. You have ${balance}.`)
+      setShowTopUp(true)
+      return
+    }
+
     await runWorkflow()
+    await deductCredits(COST_PER_RUN)
     if (isTMA()) hapticFeedback('success')
   }
 
   const handleExport = () => {
     if (!datasetResult) return
+
+    if (!canAfford(COST_PER_EXPORT)) {
+      setTopUpReason(`You need at least ${COST_PER_EXPORT} credit to export. You have ${balance}.`)
+      setShowTopUp(true)
+      return
+    }
+
     const filename = `${workflowName.replace(/\s+/g, '_').toLowerCase()}_dataset.jsonl`
     downloadJSONL(datasetResult, filename)
+    deductCredits(COST_PER_EXPORT)
     const rowCount = datasetResult.split('\n').filter(l => l.trim()).length
     addToHistory({
       id: Date.now().toString(),
@@ -47,7 +73,7 @@ export function Toolbar({ onToggleSidebar }: ToolbarProps) {
     importInputRef.current?.click()
   }
 
-  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
@@ -63,126 +89,133 @@ export function Toolbar({ onToggleSidebar }: ToolbarProps) {
   }
 
   return (
-    <div className="h-12 bg-n8n-dark-2 border-b border-n8n-dark-4 flex items-center px-3 gap-2 flex-shrink-0">
-      <input
-        ref={importInputRef}
-        type="file"
-        accept=".json"
-        className="hidden"
-        onChange={handleFileSelected}
-      />
+    <>
+      <CreditTopUp open={showTopUp} onClose={() => setShowTopUp(false)} reason={topUpReason} />
 
-      <button
-        onClick={onToggleSidebar}
-        className="p-1.5 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-white transition-colors"
-        title="Toggle sidebar"
-      >
-        <Menu size={18} />
-      </button>
-
-      <div className="w-px h-6 bg-n8n-dark-4" />
-
-      {/* dirty indicator */}
-      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isDirty ? 'bg-n8n-orange' : 'bg-green-500'}`}
-        title={isDirty ? 'Unsaved changes' : 'Saved'} />
-
-      <input
-        className="bg-transparent text-sm font-medium text-white border-none outline-none focus:bg-n8n-dark-4 px-2 py-1 rounded-lg w-44 transition-colors"
-        value={workflowName}
-        onChange={e => setWorkflowName(e.target.value)}
-      />
-
-      {!activeWorkflowId && nodes.length > 0 && (
-        <span className="text-[10px] text-n8n-orange bg-n8n-orange/10 px-1.5 py-0.5 rounded whitespace-nowrap">
-          unsaved
-        </span>
-      )}
-
-      <div className="flex-1" />
-
-      {/* Desktop buttons */}
-      <div className="hidden md:flex items-center gap-2">
-        <button
-          onClick={handleImport}
-          className="btn-secondary flex items-center gap-1.5 text-xs"
-          title="Import workflow"
-        >
-          <Upload size={14} />
-          Import
-        </button>
+      <div className="h-12 bg-n8n-dark-2 border-b border-n8n-dark-4 flex items-center px-3 gap-2 flex-shrink-0">
+        <input
+          ref={importInputRef}
+          type="file"
+          accept=".json"
+          className="hidden"
+          onChange={handleFileSelected}
+        />
 
         <button
-          onClick={handleRun}
-          disabled={isRunning || nodes.length === 0}
-          className="btn-primary flex items-center gap-1.5 text-xs"
+          onClick={onToggleSidebar}
+          className="p-1.5 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-white transition-colors"
+          title="Toggle sidebar"
         >
-          <Play size={14} />
-          {isRunning ? 'Running...' : 'Run'}
+          <Menu size={18} />
         </button>
 
-        <button
-          onClick={saveWorkflow}
-          className="btn-secondary flex items-center gap-1.5 text-xs"
-          title="Save workflow"
-        >
-          <Save size={14} />
-          Save
-        </button>
+        <div className="w-px h-6 bg-n8n-dark-4" />
 
-        <button
-          onClick={handleExport}
-          disabled={!datasetResult}
-          className="btn-secondary flex items-center gap-1.5 text-xs"
-          title="Export dataset"
-        >
-          <FileDown size={14} />
-          Export
-        </button>
+        {/* dirty indicator */}
+        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isDirty ? 'bg-n8n-orange' : 'bg-green-500'}`}
+          title={isDirty ? 'Unsaved changes' : 'Saved'} />
 
-        <button
-          onClick={clearWorkflow}
-          className="p-1.5 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-n8n-red transition-colors"
-          title="Clear canvas"
-        >
-          <Trash2 size={16} />
-        </button>
-      </div>
+        <input
+          className="bg-transparent text-sm font-medium text-white border-none outline-none focus:bg-n8n-dark-4 px-2 py-1 rounded-lg w-44 transition-colors"
+          value={workflowName}
+          onChange={e => setWorkflowName(e.target.value)}
+        />
 
-      {/* Mobile Actions dropdown */}
-      <details className="md:hidden group relative">
-        <summary className="list-none flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-700 hover:bg-green-600 text-xs font-medium text-white cursor-pointer transition-colors">
-          Actions
-          <svg className="w-3 h-3 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </summary>
-        <div className="absolute top-full right-0 mt-1.5 bg-n8n-dark-2 border border-n8n-dark-4 rounded-lg p-2 flex flex-col gap-1.5 min-w-[150px] z-50 shadow-xl">
-          <button onClick={handleImport} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-dark-4 hover:bg-n8n-dark-5 text-xs font-medium text-n8n-gray-light hover:text-white transition-colors">
+        {!activeWorkflowId && nodes.length > 0 && (
+          <span className="text-[10px] text-n8n-orange bg-n8n-orange/10 px-1.5 py-0.5 rounded whitespace-nowrap">
+            unsaved
+          </span>
+        )}
+
+        <div className="flex-1" />
+
+        {/* Credit balance */}
+        <CreditBalance onBuyCredits={() => { setTopUpReason(''); setShowTopUp(true) }} />
+
+        {/* Desktop buttons */}
+        <div className="hidden md:flex items-center gap-2">
+          <button
+            onClick={handleImport}
+            className="btn-secondary flex items-center gap-1.5 text-xs"
+            title="Import workflow"
+          >
             <Upload size={14} />
             Import
           </button>
 
-          <button onClick={handleRun} disabled={isRunning || nodes.length === 0} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-red hover:bg-n8n-red/80 text-xs font-medium text-white transition-colors disabled:opacity-50">
+          <button
+            onClick={handleRun}
+            disabled={isRunning || nodes.length === 0}
+            className="btn-primary flex items-center gap-1.5 text-xs"
+          >
             <Play size={14} />
             {isRunning ? 'Running...' : 'Run'}
           </button>
 
-          <button onClick={saveWorkflow} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-dark-4 hover:bg-n8n-dark-5 text-xs font-medium text-n8n-gray-light hover:text-white transition-colors">
+          <button
+            onClick={saveWorkflow}
+            className="btn-secondary flex items-center gap-1.5 text-xs"
+            title="Save workflow"
+          >
             <Save size={14} />
             Save
           </button>
 
-          <button onClick={handleExport} disabled={!datasetResult} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-dark-4 hover:bg-n8n-dark-5 text-xs font-medium text-n8n-gray-light hover:text-white transition-colors disabled:opacity-40">
+          <button
+            onClick={handleExport}
+            disabled={!datasetResult}
+            className="btn-secondary flex items-center gap-1.5 text-xs"
+            title="Export dataset"
+          >
             <FileDown size={14} />
             Export
           </button>
 
-          <button onClick={clearWorkflow} className="flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-n8n-dark-4 text-xs font-medium text-n8n-gray-light hover:text-n8n-red transition-colors">
-            <Trash2 size={14} />
-            Delete
+          <button
+            onClick={clearWorkflow}
+            className="p-1.5 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-n8n-red transition-colors"
+            title="Clear canvas"
+          >
+            <Trash2 size={16} />
           </button>
         </div>
-      </details>
-    </div>
+
+        {/* Mobile Actions dropdown */}
+        <details className="md:hidden group relative">
+          <summary className="list-none flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-700 hover:bg-green-600 text-xs font-medium text-white cursor-pointer transition-colors">
+            Actions
+            <svg className="w-3 h-3 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </summary>
+          <div className="absolute top-full right-0 mt-1.5 bg-n8n-dark-2 border border-n8n-dark-4 rounded-lg p-2 flex flex-col gap-1.5 min-w-[150px] z-50 shadow-xl">
+            <button onClick={handleImport} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-dark-4 hover:bg-n8n-dark-5 text-xs font-medium text-n8n-gray-light hover:text-white transition-colors">
+              <Upload size={14} />
+              Import
+            </button>
+
+            <button onClick={handleRun} disabled={isRunning || nodes.length === 0} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-red hover:bg-n8n-red/80 text-xs font-medium text-white transition-colors disabled:opacity-50">
+              <Play size={14} />
+              {isRunning ? 'Running...' : 'Run'}
+            </button>
+
+            <button onClick={saveWorkflow} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-dark-4 hover:bg-n8n-dark-5 text-xs font-medium text-n8n-gray-light hover:text-white transition-colors">
+              <Save size={14} />
+              Save
+            </button>
+
+            <button onClick={handleExport} disabled={!datasetResult} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-dark-4 hover:bg-n8n-dark-5 text-xs font-medium text-n8n-gray-light hover:text-white transition-colors disabled:opacity-40">
+              <FileDown size={14} />
+              Export
+            </button>
+
+            <button onClick={clearWorkflow} className="flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-n8n-dark-4 text-xs font-medium text-n8n-gray-light hover:text-n8n-red transition-colors">
+              <Trash2 size={14} />
+              Delete
+            </button>
+          </div>
+        </details>
+      </div>
+    </>
   )
 }
