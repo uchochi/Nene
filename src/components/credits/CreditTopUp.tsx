@@ -6,10 +6,11 @@ import {
   PLANS, getPlanPrice, fetchExchangeRates,
   paystackAmount, formatCurrency, type Plan,
 } from '../../utils/credits'
-import { X, Check, ChevronRight, Zap, Loader2, AlertCircle } from 'lucide-react'
+import { X, Check, ChevronRight, Zap, Loader2, AlertCircle, ArrowLeft } from 'lucide-react'
+import { CurrencySelector } from './CurrencySelector'
 
 /* ------------------------------------------------------- */
-/*  Countries (same set used in PaystackCheckout)           */
+/*  Countries                                              */
 /* ------------------------------------------------------- */
 
 interface Country {
@@ -66,7 +67,6 @@ function getPaymentOptions(countryCode: string) {
 interface CreditTopUpProps {
   open: boolean
   onClose: () => void
-  /** optional message to show e.g. "Insufficient credits" */
   reason?: string
 }
 
@@ -82,6 +82,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
   const [step, setStep] = useState<0 | 1 | 2>(0)
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null)
+  const [displayCurrency, setDisplayCurrency] = useState('USD')
   const [rates, setRates] = useState<Record<string, number>>({})
   const [ratesLoading, setRatesLoading] = useState(false)
   const [status, setStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle')
@@ -103,6 +104,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
       setStep(0)
       setSelectedPlan(null)
       setSelectedCountry(null)
+      setDisplayCurrency('USD')
       setStatus('idle')
       setErrorMsg('')
     }
@@ -114,9 +116,10 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
     setStep(1)
   }, [])
 
-  /* step 1 — select country */
+  /* step 1 — select country (for payment) */
   const handleSelectCountry = useCallback((country: Country) => {
     setSelectedCountry(country)
+    setDisplayCurrency(country.currency)
     setStep(2)
   }, [])
 
@@ -157,14 +160,12 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
         onSuccess: async (response: { reference: string }) => {
           if (!processingRef.current) return
           try {
-            /* verify with backend */
             await fetch('/api/verify-payment', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ reference: response.reference }),
             })
 
-            /* credit the user */
             await addCredits(
               selectedPlan.id,
               selectedPlan.credits,
@@ -209,21 +210,13 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
     }
   }, [selectedPlan, selectedCountry, user, rates, isFirst, addCredits])
 
-  /* helper: display price for a plan in a given currency */
-  const displayPrice = useCallback((plan: Plan, country: Country | null): string => {
-    const rate = country ? (rates[country.currency] || 1) : 1
+  /* display price in the selected display currency */
+  const displayPrice = useCallback((plan: Plan): string => {
+    const rate = rates[displayCurrency] || 1
     const usdCents = getPlanPrice(plan, isFirst)
     const localCents = paystackAmount(usdCents, rate)
-    const currency = country?.currency || 'USD'
-    /* Note: formatCurrency treats the amount as the main unit, but we have cents,
-       so divide by 100 for display */
-    return formatCurrency(Math.round(localCents / 100), currency)
-  }, [rates, isFirst])
-
-  const price = (() => {
-    if (!selectedPlan || !selectedCountry) return ''
-    return displayPrice(selectedPlan, selectedCountry)
-  })()
+    return formatCurrency(Math.round(localCents / 100), displayCurrency)
+  }, [rates, displayCurrency, isFirst])
 
   /* close on success after a moment */
   useEffect(() => {
@@ -241,12 +234,28 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
         {/* header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-n8n-dark-4">
           <div className="flex items-center gap-2.5">
-            <Zap size={20} className="text-n8n-orange" />
-            <span className="font-bold text-white text-sm">Buy Credits</span>
+            {step > 0 ? (
+              <button
+                onClick={() => setStep(s => (s - 1) as 0 | 1 | 2)}
+                className="p-1 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-white transition-colors"
+              >
+                <ArrowLeft size={18} />
+              </button>
+            ) : (
+              <Zap size={20} className="text-n8n-orange" />
+            )}
+            <span className="font-bold text-white text-sm">
+              {step === 0 ? 'Buy Credits' : step === 1 ? 'Select Country' : 'Payment'}
+            </span>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-white transition-colors">
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-3">
+            {step < 2 && (
+              <CurrencySelector selected={displayCurrency} onChange={setDisplayCurrency} />
+            )}
+            <button onClick={onClose} className="p-1 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-white transition-colors">
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         <div className="p-6 space-y-6">
@@ -263,6 +272,14 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
             <span className="text-n8n-gray-light">Current balance</span>
             <span className="font-semibold text-white tabular-nums">{balance.toLocaleString()} credits</span>
           </div>
+
+          {/* currency switcher instruction */}
+          {step === 0 && (
+            <div className="flex items-center gap-2.5 p-3.5 rounded-xl bg-n8n-orange/10 border border-n8n-orange/20 text-sm">
+              <span className="text-n8n-orange font-semibold">💱 Switch price to your local currency</span>
+              <span className="text-n8n-gray-light text-xs ml-auto">Use the currency selector above</span>
+            </div>
+          )}
 
           {/* progress dots */}
           {step > 0 && (
@@ -291,8 +308,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
 
               <div className="grid gap-3">
                 {PLANS.map(plan => {
-                  const fullPrice = formatCurrency(Math.round(plan.priceUsdCents / 100), 'USD')
-                  const discounted = displayPrice(plan, null)
+                  const fullPriceUsd = formatCurrency(Math.round(plan.priceUsdCents / 100), 'USD')
                   return (
                     <button
                       key={plan.id}
@@ -307,9 +323,9 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
                         <div className="text-xs text-n8n-gray">{plan.credits.toLocaleString()} credits</div>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <div className="text-sm font-bold text-white">{discounted}</div>
+                        <div className="text-sm font-bold text-white">{displayPrice(plan)}</div>
                         {isFirst && (
-                          <div className="text-xs text-n8n-gray line-through">{fullPrice}</div>
+                          <div className="text-xs text-n8n-gray line-through">{fullPriceUsd}</div>
                         )}
                       </div>
                       <ChevronRight size={18} className="text-n8n-gray-light group-hover:text-n8n-orange transition-colors flex-shrink-0" />
@@ -326,7 +342,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-white">Select your country</h2>
-                  <p className="text-sm text-n8n-gray-light mt-1">Prices shown in local currency.</p>
+                  <p className="text-sm text-n8n-gray-light mt-1">Choose your country for payment options.</p>
                 </div>
                 {ratesLoading && <Loader2 size={16} className="animate-spin text-n8n-gray-light" />}
               </div>
@@ -345,35 +361,38 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
                     </div>
                     {selectedPlan && (
                       <div className="text-right text-sm font-semibold text-n8n-orange tabular-nums flex-shrink-0">
-                        {displayPrice(selectedPlan, c)}
+                        {(() => {
+                          const rate = rates[displayCurrency] || 1
+                          const usdCents = getPlanPrice(selectedPlan, isFirst)
+                          const localCents = paystackAmount(usdCents, rate)
+                          return formatCurrency(Math.round(localCents / 100), displayCurrency)
+                        })()}
                       </div>
                     )}
                     <ChevronRight size={16} className="text-n8n-gray-light group-hover:text-n8n-orange transition-colors flex-shrink-0" />
                   </button>
                 ))}
               </div>
-
-              <button
-                onClick={() => setStep(0)}
-                className="text-xs text-n8n-gray hover:text-white transition-colors"
-              >
-                ← Change plan
-              </button>
             </div>
           )}
 
           {/* ──────── STEP 2: Payment Method ──────── */}
           {step === 2 && selectedPlan && selectedCountry && (
             <div className="space-y-6">
-              <button onClick={() => setStep(1)} className="text-xs text-n8n-gray hover:text-white transition-colors">
-                ← Change country
-              </button>
-
               <div className="text-center">
                 <span className="text-3xl block mb-2">{selectedCountry.flag}</span>
                 <h2 className="text-lg font-bold text-white">{selectedPlan.label}</h2>
                 <p className="text-sm text-n8n-gray-light mt-1">
-                  {selectedPlan.credits.toLocaleString()} credits for <span className="text-n8n-orange font-semibold">{price}</span>
+                  {selectedPlan.credits.toLocaleString()} credits for
+                  {' '}
+                  <span className="text-n8n-orange font-semibold">
+                    {(() => {
+                      const rate = rates[selectedCountry.currency] || 1
+                      const usdCents = getPlanPrice(selectedPlan, isFirst)
+                      const localCents = paystackAmount(usdCents, rate)
+                      return formatCurrency(Math.round(localCents / 100), selectedCountry.currency)
+                    })()}
+                  </span>
                   {isFirst && <span className="text-xs text-green-400 ml-2">75% off</span>}
                 </p>
               </div>
