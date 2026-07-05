@@ -686,7 +686,7 @@ const AI_API: Record<string, string> = {
 }
 
 async function callAI(item: Record<string, unknown>, cfg: AITransformNodeConfig, apiKey: string): Promise<string> {
-  const text = Object.values(item).join('\n').slice(0, 2000)
+  const text = JSON.stringify(item, null, 2).slice(0, 3000)
   const userPrompt = cfg.prompt || `Analyze this content and explain the underlying mechanics, cultural context, and linguistic techniques used. Format the output as a JSON object with fields: "setup", "punchline", "humor_mechanics", "cultural_context", "linguistic_context", "explanation_for_ai".\n\nContent: ${text}`
   const provider = getAIProvider()
   const apiUrl = AI_API[provider] || AI_API.openai
@@ -714,8 +714,10 @@ async function callAI(item: Record<string, unknown>, cfg: AITransformNodeConfig,
 
   const result = await response.json()
   if (!response.ok || result.error) {
+    const meta = result.error?.metadata
+    const detail = meta?.raw?.error?.message || meta?.provider_name || ''
     const msg = result.error?.message || `AI API error: ${response.status}`
-    throw new Error(msg)
+    throw new Error(detail ? `${msg} — ${detail}` : msg)
   }
   return result.choices?.[0]?.message?.content || 'No response'
 }
