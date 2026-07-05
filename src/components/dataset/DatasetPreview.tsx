@@ -110,9 +110,9 @@ export function DatasetPreview() {
               <div key={i} className="bg-n8n-dark-4 rounded-lg p-3 font-mono text-xs">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-n8n-gray-light font-semibold">#{i + 1}</span>
-                  {entry.language_code && (
+                  {!!entry.language_code && (
                     <span className="text-[10px] uppercase bg-n8n-dark-5 px-1.5 py-0.5 rounded text-n8n-gray-light">
-                      {entry.language_code as string}
+                      {String(entry.language_code)}
                     </span>
                   )}
                   {((entry.humor_mechanics as string[]) || []).slice(0, 2).map((m: string) => (
