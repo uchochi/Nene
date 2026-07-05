@@ -593,7 +593,10 @@ function topologicalSort(nodes: Node[], edges: Edge[]): Node[] {
 
 function formatData(data: string, cfg: FormatNodeConfig): Record<string, unknown>[] {
   if (cfg.formatType === 'json') {
-    try { return JSON.parse(data) } catch { return [{ raw: data }] }
+    try {
+      const parsed = JSON.parse(data)
+      return Array.isArray(parsed) ? parsed : [parsed]
+    } catch { return [{ raw: data }] }
   }
   const lines = data.split('\n').filter(l => l.trim())
   return lines.map((line, i) => ({
