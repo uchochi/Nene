@@ -658,8 +658,10 @@ async function aiTransform(data: Record<string, unknown>[], cfg: AITransformNode
       return { ...item, explanation_for_ai: explanation, ai_processed: true }
     }))
     return enhanced
-  } catch {
-    return data.map(item => ({ ...item, ai_processed: false }))
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Unknown AI error'
+    console.error('aiTransform failed:', msg)
+    return data.map(item => ({ ...item, ai_processed: false, error: msg }))
   }
 }
 
@@ -668,8 +670,10 @@ async function aiTransformString(data: string, cfg: AITransformNodeConfig, apiKe
   try {
     const response = await callAI({ raw_content: data }, cfg, apiKey)
     return [{ raw_content: data, explanation_for_ai: response, ai_processed: true }]
-  } catch {
-    return [{ raw_content: data, ai_processed: false }]
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Unknown AI error'
+    console.error('aiTransformString failed:', msg)
+    return [{ raw_content: data, ai_processed: false, error: msg }]
   }
 }
 
@@ -705,8 +709,11 @@ async function callAI(item: Record<string, unknown>, cfg: AITransformNodeConfig,
     }),
   })
 
-  if (!response.ok) throw new Error(`AI API error: ${response.status}`)
   const result = await response.json()
+  if (!response.ok || result.error) {
+    const msg = result.error?.message || `AI API error: ${response.status}`
+    throw new Error(msg)
+  }
   return result.choices?.[0]?.message?.content || 'No response'
 }
 
