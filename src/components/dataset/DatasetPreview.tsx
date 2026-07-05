@@ -2,7 +2,7 @@ import { useWorkflowStore } from '../../store/workflowStore'
 import { validateJSONL, getStatistics } from '../../utils/jsonl'
 import { Copy, BarChart3, X } from 'lucide-react'
 import { isTMA, hapticFeedback } from '../../utils/tma'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 
 export function DatasetPreview() {
   const datasetResult = useWorkflowStore(s => s.datasetResult)
@@ -13,8 +13,14 @@ export function DatasetPreview() {
 
   if (!datasetResult) return null
 
-  const { entries } = validateJSONL(datasetResult)
-  const stats = getStatistics(entries)
+  const { entries } = useMemo(() => {
+    try {
+      const parsed = JSON.parse(datasetResult)
+      if (Array.isArray(parsed)) return { entries: parsed }
+    } catch { /* not a JSON array — treat as JSONL */ }
+    return validateJSONL(datasetResult)
+  }, [datasetResult])
+  const stats = useMemo(() => getStatistics(entries), [entries])
 
   const [copyMsg, setCopyMsg] = useState<string | null>(null)
 
@@ -36,7 +42,7 @@ export function DatasetPreview() {
     setTimeout(() => setCopyMsg(null), 3000)
   }
 
-  const previewLines = datasetResult.split('\n').filter(l => l.trim()).slice(0, 5)
+  const previewLines = entries.slice(0, 5)
 
   return (
     <div className="panel m-3 flex flex-col max-h-[300px]">
@@ -100,37 +106,26 @@ export function DatasetPreview() {
       <div className="flex-1 overflow-y-auto p-4">
         {tab === 'preview' && (
           <div className="space-y-2">
-            {previewLines.map((line, i) => {
-              try {
-                const parsed = JSON.parse(line)
-                return (
-                  <div key={i} className="bg-n8n-dark-4 rounded-lg p-3 font-mono text-xs">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-n8n-gray-light font-semibold">#{i + 1}</span>
-                      {parsed.language_code && (
-                        <span className="text-[10px] uppercase bg-n8n-dark-5 px-1.5 py-0.5 rounded text-n8n-gray-light">
-                          {parsed.language_code}
-                        </span>
-                      )}
-                      {parsed.humor_mechanics?.slice(0, 2).map((m: string) => (
-                        <span key={m} className="text-[10px] bg-n8n-orange/10 text-n8n-orange px-1.5 py-0.5 rounded">
-                          {m}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="text-n8n-gray-light line-clamp-2">
-                      {parsed.setup || parsed.raw_content || JSON.stringify(parsed).slice(0, 100)}
-                    </div>
-                  </div>
-                )
-              } catch {
-                return (
-                  <div key={i} className="bg-n8n-red/10 rounded-lg p-3 text-xs text-n8n-red">
-                    Invalid JSON on line {i + 1}
-                  </div>
-                )
-              }
-            })}
+            {(previewLines as Record<string, unknown>[]).map((entry, i) => (
+              <div key={i} className="bg-n8n-dark-4 rounded-lg p-3 font-mono text-xs">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-n8n-gray-light font-semibold">#{i + 1}</span>
+                  {entry.language_code && (
+                    <span className="text-[10px] uppercase bg-n8n-dark-5 px-1.5 py-0.5 rounded text-n8n-gray-light">
+                      {entry.language_code as string}
+                    </span>
+                  )}
+                  {((entry.humor_mechanics as string[]) || []).slice(0, 2).map((m: string) => (
+                    <span key={m} className="text-[10px] bg-n8n-orange/10 text-n8n-orange px-1.5 py-0.5 rounded">
+                      {m}
+                    </span>
+                  ))}
+                </div>
+                <div className="text-n8n-gray-light line-clamp-2">
+                  {(entry.setup as string) || (entry.raw_content as string) || JSON.stringify(entry).slice(0, 100)}
+                </div>
+              </div>
+            ))}
             {previewLines.length === 0 && (
               <div className="text-center text-n8n-gray text-sm py-8">No data entries</div>
             )}
