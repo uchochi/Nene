@@ -210,7 +210,37 @@ Leave `VITE_REDIRECT_URL` **empty** during local development so the app works in
 
 ---
 
-## 8. Configure AI (Optional)
+## 8. Deploy the Download Bridge
+
+Telegram Mini Apps cannot trigger file downloads directly. A separate download bridge app handles this — it receives dataset content via URL hash and initiates the download in a system browser.
+
+### Setup the Downloader Repo
+
+1. Clone the downloader repo:
+   ```bash
+   git clone https://github.com/uchochi/Nene2u.git n8n-dataset-downloader
+   cd n8n-dataset-downloader
+   npm install
+   ```
+
+2. Deploy to Vercel (same steps as the main app):
+   ```bash
+   vercel --prod
+   ```
+
+### Connect the Apps
+
+In the main app (`n8n-dataset`), update the downloader URL in `src/utils/downloadLink.ts`:
+
+```ts
+const DOWNLOADER_BASE = 'https://your-downloader-deployment.vercel.app'
+```
+
+Then rebuild and redeploy the main app.
+
+---
+
+## 9. Configure AI (Optional)
 
 AI features are configured via environment variables — no settings UI needed in the app.
 
@@ -232,7 +262,7 @@ Supported models:
 
 ---
 
-## 8. Production Checklist
+## 10. Production Checklist
 
 - [ ] App loads in browser with email/password sign-in
 - [ ] App loads inside Telegram with "Sign in with Telegram" option
@@ -241,7 +271,8 @@ Supported models:
 - [ ] Onboarding displays on first visit only
 - [ ] Nodes can be added by clicking or dragging from the palette
 - [ ] Workflow runs end-to-end (Input → Format → AI → Output)
-- [ ] JSONL export downloads correctly
+- [ ] Download bridge deployed and linked in `downloadLink.ts`
+- [ ] JSONL export copies download link correctly
 - [ ] Preview tab shows formatted entries
 - [ ] Stats tab shows language/region/mechanic breakdown
 - [ ] Sidebar closes on mobile
@@ -252,7 +283,7 @@ Supported models:
 
 ---
 
-## 9. Troubleshooting
+## 11. Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
@@ -268,7 +299,7 @@ Supported models:
 
 ---
 
-## 10. Project Structure Reference
+## 12. Project Structure Reference
 
 ```
 n8n-dataset/

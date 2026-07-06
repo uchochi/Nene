@@ -88,7 +88,7 @@ Click **Run Workflow** in the toolbar. The bottom panel will show the result:
 {"id":"item_003","raw_content":"I told my wife she was drawing her eyebrows too high. She looked surprised.","language_code":"unknown","region":"unknown","format":"text","timestamp":"2026-06-28T12:00:00.000Z","source":"user_input"}
 ```
 
-Click **Download** to save as a `.jsonl` file.
+Click **Export** to copy the download link. Open it in your system browser to download the file.
 
 > **What happened?** The Format node split your text by lines, assigned each an ID, and wrapped them in the JSONL schema. The Output node rendered them as line-delimited JSON.
 
@@ -415,7 +415,7 @@ Parallel lines have so much in common...
 
 ### Step 11: Export
 
-Click **Download** in the preview panel. The file saves as `my_workflow_dataset.jsonl` with 18 fully enriched entries.
+Click **Export** in the toolbar. The modal shows the download link — share or open it to download `my_workflow_dataset.jsonl` with 18 fully enriched entries.
 
 ### What You Built
 
@@ -435,9 +435,17 @@ This is a production-grade pipeline. You can reuse this exact workflow for any c
 
 ## 6. Exporting & Using Your Dataset
 
-### Download JSONL
+### Exporting Your Dataset
 
-Click **Export** in the toolbar or **Download** in the preview panel. The file is named after your workflow (e.g. `my_humor_dataset.jsonl`).
+Click **Export** in the toolbar. A modal appears with the filename and a download link.
+
+- **Copy** — Copies the download link to your clipboard
+- **Share** — Shares the link via Web Share API or Telegram (inside TMA)
+- **Open & Export** — Deducts credits, logs the export to history, and opens the link in your system browser
+
+Since Telegram Mini Apps cannot trigger file downloads directly, the link opens a **download bridge** page in your system browser. The file downloads automatically on that page.
+
+> **Note:** The export costs 1 credit and is recorded in the sidebar History section.
 
 ### Using the Dataset for Fine-Tuning
 

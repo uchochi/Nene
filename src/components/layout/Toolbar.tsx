@@ -2,16 +2,16 @@ import { useRef, useState, useEffect } from 'react'
 import { useWorkflowStore } from '../../store/workflowStore'
 import { useCreditStore } from '../../store/creditStore'
 import { Play, Save, Trash2, Menu, FileDown, Upload } from 'lucide-react'
-import { downloadJSONL } from '../../utils/jsonl'
 import { isTMA, hapticFeedback } from '../../utils/tma'
-import { COST_PER_RUN, COST_PER_EXPORT } from '../../utils/credits'
+import { COST_PER_RUN } from '../../utils/credits'
 
 interface ToolbarProps {
   onToggleSidebar: () => void
   onBuyCredits: (reason?: string) => void
+  onOpenExport: () => void
 }
 
-export function Toolbar({ onToggleSidebar, onBuyCredits }: ToolbarProps) {
+export function Toolbar({ onToggleSidebar, onBuyCredits, onOpenExport }: ToolbarProps) {
   const workflowName = useWorkflowStore(s => s.workflowName)
   const setWorkflowName = useWorkflowStore(s => s.setWorkflowName)
   const runWorkflow = useWorkflowStore(s => s.runWorkflow)
@@ -19,7 +19,6 @@ export function Toolbar({ onToggleSidebar, onBuyCredits }: ToolbarProps) {
   const saveWorkflow = useWorkflowStore(s => s.saveWorkflow)
   const clearWorkflow = useWorkflowStore(s => s.clearWorkflow)
   const datasetResult = useWorkflowStore(s => s.datasetResult)
-  const addToHistory = useWorkflowStore(s => s.addToHistory)
   const nodes = useWorkflowStore(s => s.nodes)
   const isDirty = useWorkflowStore(s => s.isDirty)
   const activeWorkflowId = useWorkflowStore(s => s.activeWorkflowId)
@@ -56,36 +55,9 @@ export function Toolbar({ onToggleSidebar, onBuyCredits }: ToolbarProps) {
     if (isTMA()) hapticFeedback('success')
   }
 
-  const handleExport = async () => {
+  const handleExport = () => {
     if (!datasetResult) return
-
-    if (!canAfford(COST_PER_EXPORT)) {
-      onBuyCredits(`You need at least ${COST_PER_EXPORT} credit to export. You have ${balance}.`)
-      return
-    }
-
-    const filename = `${workflowName.replace(/\s+/g, '_').toLowerCase()}_dataset.jsonl`
-    try {
-      downloadJSONL(datasetResult, filename)
-    } catch {
-      /* download failed — fall back to clipboard */
-      try {
-        await navigator.clipboard.writeText(datasetResult)
-      } catch {
-        return /* both failed, give up */
-      }
-    }
-
-    await deductCredits(COST_PER_EXPORT)
-    const rowCount = datasetResult.split('\n').filter(l => l.trim()).length
-    await addToHistory({
-      id: Date.now().toString(),
-      timestamp: Date.now(),
-      workflowName,
-      rowCount,
-      outputPreview: datasetResult.slice(0, 200),
-    })
-    if (isTMA()) hapticFeedback('success')
+    onOpenExport()
   }
 
   const handleImport = () => {

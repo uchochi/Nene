@@ -9,6 +9,7 @@ import { DatasetPreview } from './components/dataset/DatasetPreview'
 import { AuthScreen } from './components/auth/AuthScreen'
 import { CreditTopUp } from './components/credits/CreditTopUp'
 import { SettingsModal } from './components/settings/SettingsModal'
+import { ExportModal } from './components/export/ExportModal'
 import { useWorkflowStore } from './store/workflowStore'
 import { useCreditStore } from './store/creditStore'
 import { useAuthStore } from './store/authStore'
@@ -33,6 +34,7 @@ export default function App() {
   const [showTopUp, setShowTopUp] = useState(false)
   const [topUpReason, setTopUpReason] = useState('')
   const [showSettings, setShowSettings] = useState(false)
+  const [showExport, setShowExport] = useState(false)
 
   const onBuyCredits = useCallback((reason = '') => {
     setTopUpReason(reason)
@@ -91,9 +93,10 @@ export default function App() {
     <ReactFlowProvider>
       <CreditTopUp open={showTopUp} onClose={() => setShowTopUp(false)} reason={topUpReason} />
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {showExport && <ExportModal open={showExport} onClose={() => setShowExport(false)} />}
 
       <div className="h-screen w-screen flex flex-col overflow-hidden bg-n8n-dark">
-        <Toolbar onToggleSidebar={() => setSidebarOpen(v => !v)} onBuyCredits={onBuyCredits} />
+        <Toolbar onToggleSidebar={() => setSidebarOpen(v => !v)} onBuyCredits={onBuyCredits} onOpenExport={() => setShowExport(true)} />
         <div className="flex flex-1 overflow-hidden">
           <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} onBuyCredits={onBuyCredits} onOpenSettings={() => setShowSettings(true)} />
           <div className="flex-1 flex flex-col overflow-hidden relative">
