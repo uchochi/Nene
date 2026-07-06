@@ -155,7 +155,7 @@ function getEnvApiKey(): string {
 }
 
 function getDefaultModel(): string {
-  return import.meta.env.VITE_AI_MODEL ?? 'gpt-4o-mini'
+  return import.meta.env.VITE_AI_MODEL ?? 'google/gemma-4-26b-a4b-it:free'
 }
 
 function getAIProvider(): string {

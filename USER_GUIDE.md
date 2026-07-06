@@ -180,7 +180,6 @@ Set **Content Type** to `JSON`.
 
 Click the **AI Transform** node (pink color). Set:
 
-- **AI Model:** `gpt-4o-mini`
 - **Custom Prompt:** (leave empty for default)
 
 The default prompt asks the AI to analyze content and extract: setup, punchline, humor mechanics, cultural context, linguistic context, and explanation_for_ai.
