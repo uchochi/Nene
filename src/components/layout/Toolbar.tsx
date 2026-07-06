@@ -56,7 +56,7 @@ export function Toolbar({ onToggleSidebar, onBuyCredits }: ToolbarProps) {
     if (isTMA()) hapticFeedback('success')
   }
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!datasetResult) return
 
     if (!canAfford(COST_PER_EXPORT)) {
@@ -65,10 +65,20 @@ export function Toolbar({ onToggleSidebar, onBuyCredits }: ToolbarProps) {
     }
 
     const filename = `${workflowName.replace(/\s+/g, '_').toLowerCase()}_dataset.jsonl`
-    downloadJSONL(datasetResult, filename)
-    deductCredits(COST_PER_EXPORT)
+    try {
+      downloadJSONL(datasetResult, filename)
+    } catch {
+      /* download failed — fall back to clipboard */
+      try {
+        await navigator.clipboard.writeText(datasetResult)
+      } catch {
+        return /* both failed, give up */
+      }
+    }
+
+    await deductCredits(COST_PER_EXPORT)
     const rowCount = datasetResult.split('\n').filter(l => l.trim()).length
-    addToHistory({
+    await addToHistory({
       id: Date.now().toString(),
       timestamp: Date.now(),
       workflowName,

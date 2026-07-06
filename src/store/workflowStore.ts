@@ -403,13 +403,22 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   exportWorkflow: (id) => {
     const wf = get().savedWorkflows.find(w => w.id === id)
     if (!wf) return
-    const blob = new Blob([JSON.stringify(wf, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${wf.name.replace(/\s+/g, '_').toLowerCase()}.n8n-dataset.json`
-    a.click()
-    URL.revokeObjectURL(url)
+    const content = JSON.stringify(wf, null, 2)
+    const filename = `${wf.name.replace(/\s+/g, '_').toLowerCase()}.n8n-dataset.json`
+    try {
+      const blob = new Blob([content], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.style.display = 'none'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch {
+      try { navigator.clipboard.writeText(content) } catch { /* give up */ }
+    }
   },
 
   importWorkflow: async (data) => {
