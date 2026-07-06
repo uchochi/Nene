@@ -155,7 +155,7 @@ function getEnvApiKey(): string {
 }
 
 function getDefaultModel(): string {
-  return import.meta.env.VITE_AI_MODEL ?? 'google/gemma-4-26b-a4b-it:free'
+  return import.meta.env.VITE_AI_MODEL ?? 'nvidia/nemotron-3-nano-30b-a3b:free'
 }
 
 function getAIProvider(): string {
