@@ -122,13 +122,13 @@ export function Toolbar({ onToggleSidebar, onBuyCredits }: ToolbarProps) {
           title={isDirty ? 'Unsaved changes' : 'Saved'} />
 
         <input
-          className="bg-transparent text-sm font-medium text-white border-none outline-none focus:bg-n8n-dark-4 px-2 py-1 rounded-lg w-44 transition-colors"
+          className="bg-transparent text-sm font-medium text-white border-none outline-none focus:bg-n8n-dark-4 px-2 py-1 rounded-lg min-w-0 flex-1 md:w-44 md:flex-none transition-colors"
           value={workflowName}
           onChange={e => setWorkflowName(e.target.value)}
         />
 
         {!activeWorkflowId && nodes.length > 0 && (
-          <span className="text-[10px] text-n8n-orange bg-n8n-orange/10 px-1.5 py-0.5 rounded whitespace-nowrap">
+          <span className="text-[10px] text-n8n-orange bg-n8n-orange/10 px-1.5 py-0.5 rounded whitespace-nowrap flex-shrink-0">
             unsaved
           </span>
         )}
@@ -202,12 +202,12 @@ export function Toolbar({ onToggleSidebar, onBuyCredits }: ToolbarProps) {
                 Import
               </button>
 
-              <button onClick={() => { handleRun(); setShowMobileActions(false) }} disabled={isRunning || nodes.length === 0} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-red hover:bg-n8n-red/80 text-xs font-medium text-white transition-colors disabled:opacity-50">
+              <button onClick={async () => { await handleRun(); setShowMobileActions(false) }} disabled={isRunning || nodes.length === 0} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-red hover:bg-n8n-red/80 text-xs font-medium text-white transition-colors disabled:opacity-50">
                 <Play size={14} />
                 {isRunning ? 'Running...' : 'Run'}
               </button>
 
-              <button onClick={() => { saveWorkflow(); setShowMobileActions(false) }} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-dark-4 hover:bg-n8n-dark-5 text-xs font-medium text-n8n-gray-light hover:text-white transition-colors">
+              <button onClick={async () => { await saveWorkflow(); setShowMobileActions(false) }} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-dark-4 hover:bg-n8n-dark-5 text-xs font-medium text-n8n-gray-light hover:text-white transition-colors">
                 <Save size={14} />
                 Save
               </button>
