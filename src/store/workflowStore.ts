@@ -7,6 +7,7 @@ import {
 } from 'reactflow'
 import { v4 as uuidv4 } from 'uuid'
 import { supabase } from '../lib/supabase'
+import { encodeDownloadData } from '../utils/downloadLink'
 
 export type NodeType = 'input' | 'format' | 'tag' | 'group' | 'translate' | 'output' | 'ai'
 
@@ -405,20 +406,13 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     if (!wf) return
     const content = JSON.stringify(wf, null, 2)
     const filename = `${wf.name.replace(/\s+/g, '_').toLowerCase()}.n8n-dataset.json`
-    try {
-      const blob = new Blob([content], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = filename
-      a.style.display = 'none'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-    } catch {
-      try { navigator.clipboard.writeText(content) } catch { /* give up */ }
+    const url = encodeDownloadData(content, filename)
+    const telegram = (typeof window !== 'undefined' && (window as any).Telegram?.WebApp)
+    if (telegram?.openLink) {
+      telegram.openLink(url)
+      return
     }
+    window.open(url, '_blank')
   },
 
   importWorkflow: async (data) => {
