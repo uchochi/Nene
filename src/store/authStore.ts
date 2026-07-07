@@ -1,9 +1,14 @@
 import { create } from 'zustand'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
-import { initTMA } from '../utils/tma'
 
 const TG_USER_KEY = 'n8n_tg_uid'
+
+const AUTH_STORAGE_KEYS = [
+  'supabase.auth.token',
+  'supabase.auth.token-code-verifier',
+  'supabase.auth.token-user',
+]
 
 interface AuthState {
   user: User | null
@@ -18,11 +23,40 @@ interface AuthState {
 
 function getCurrentTelegramUserId(): number | null {
   try {
-    const tma = initTMA()
-    return tma.userId
+    const tg = window.Telegram?.WebApp as Record<string, unknown> | undefined
+    if (!tg) return null
+    const unsafeData = tg.initDataUnsafe as Record<string, unknown> | undefined
+    if (!unsafeData) return null
+    const user = unsafeData.user as Record<string, unknown> | undefined
+    return (user?.id as number) ?? null
   } catch {
     return null
   }
+}
+
+function clearSupabaseStorage(): void {
+  AUTH_STORAGE_KEYS.forEach(k => {
+    try { localStorage.removeItem(k) } catch { /* ignore */ }
+  })
+}
+
+let tgWatchRegistered = false
+
+function registerTgWatch(set: (partial: Partial<AuthState>) => void): void {
+  if (tgWatchRegistered) return
+  tgWatchRegistered = true
+  if (typeof document === 'undefined') return
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return
+    const currentUserId = getCurrentTelegramUserId()
+    const storedId = localStorage.getItem(TG_USER_KEY)
+    if (currentUserId && storedId && String(currentUserId) !== storedId) {
+      supabase?.auth.signOut().catch(() => {})
+      clearSupabaseStorage()
+      localStorage.removeItem(TG_USER_KEY)
+      set({ user: null })
+    }
+  })
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -42,12 +76,10 @@ export const useAuthStore = create<AuthState>((set) => ({
       const tgUserId = getCurrentTelegramUserId()
       const storedTgUserId = localStorage.getItem(TG_USER_KEY)
 
-      /* Telegram account switched — sign out */
+      /* Telegram account switched — sign out and clear storage */
       if (tgUserId && storedTgUserId && String(tgUserId) !== storedTgUserId) {
         await supabase.auth.signOut()
-        /* clear any leftover supabase session in storage */
-        const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'))
-        keys.forEach(k => localStorage.removeItem(k))
+        clearSupabaseStorage()
         set({ user: null, loading: false, initialized: true })
         return
       }
@@ -66,6 +98,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch {
       set({ user: null, loading: false, initialized: true })
     }
+
+    registerTgWatch(set)
   },
 
   signOut: async () => {
