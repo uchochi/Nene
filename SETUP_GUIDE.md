@@ -89,7 +89,8 @@ After deployment, go to **Vercel Dashboard → Project → Settings → Environm
 |----------|-------------|
 | `VITE_SUPABASE_URL` | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anonymous key |
-| `VITE_PAYSTACK_PUBLIC_KEY` | Paystack public key from [Paystack Dashboard → Settings → Developer](https://dashboard.paystack.com/#/settings/developer) — used for credit purchases |
+| `VITE_PAYSTACK_PUBLIC_KEY` | Paystack public key from [Paystack Dashboard → Settings → Developer](https://dashboard.paystack.com/#/settings/developer) — used for client-side checkout |
+| `PAYSTACK_SECRET_KEY` | Paystack secret key from the same page — used server-side to verify payments before crediting users |
 | `BOT_TOKEN` | Telegram bot token from [@BotFather](https://t.me/BotFather) — used for Telegram sign-in and bot webhook |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service_role key (Settings → API) — for server-side user management |
 

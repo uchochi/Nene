@@ -75,6 +75,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
   const balance = useCreditStore(s => s.balance)
   const totalPurchased = useCreditStore(s => s.totalPurchased)
   const addCredits = useCreditStore(s => s.addCredits)
+  const syncWithServer = useCreditStore(s => s.syncWithServer)
 
   const isFirst = totalPurchased === 0
 
@@ -160,24 +161,32 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
         onSuccess: async (response: { reference: string }) => {
           if (!processingRef.current) return
           try {
-            await fetch('/api/verify-payment', {
+            const verifyRes = await fetch('/api/verify-payment', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ reference: response.reference }),
+              body: JSON.stringify({
+                reference: response.reference,
+                userId: user.id,
+                planId: selectedPlan.id,
+                credits: selectedPlan.credits,
+                amount,
+                currency: selectedCountry.currency,
+              }),
             })
 
-            await addCredits(
-              selectedPlan.id,
-              selectedPlan.credits,
-              amount,
-              selectedCountry.currency,
-              response.reference,
-            )
+            const verifyData = await verifyRes.json()
+
+            if (!verifyData.success) {
+              throw new Error(verifyData.error || 'Verification failed')
+            }
+
+            await syncWithServer(user.id)
 
             if (processingRef.current) setStatus('success')
-          } catch {
+          } catch (err) {
             setStatus('error')
-            setErrorMsg('Backend verification failed. Contact support — your reference: ' + response.reference)
+            const msg = err instanceof Error ? err.message : 'Verification failed'
+            setErrorMsg(msg + ' — Reference: ' + response.reference)
           } finally {
             processingRef.current = false
           }
@@ -208,7 +217,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
       setStatus('error')
       setErrorMsg(err instanceof Error ? err.message : 'An unexpected error occurred.')
     }
-  }, [selectedPlan, selectedCountry, user, rates, isFirst, addCredits])
+  }, [selectedPlan, selectedCountry, user, rates, isFirst, addCredits, syncWithServer])
 
   /* display price in the selected display currency */
   const displayPrice = useCallback((plan: Plan): string => {
