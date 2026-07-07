@@ -1,6 +1,9 @@
 import { create } from 'zustand'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { initTMA } from '../utils/tma'
+
+const TG_USER_KEY = 'n8n_tg_uid'
 
 interface AuthState {
   user: User | null
@@ -11,6 +14,15 @@ interface AuthState {
   initialize: () => Promise<void>
   signOut: () => Promise<void>
   updatePassword: (newPassword: string) => Promise<void>
+}
+
+function getCurrentTelegramUserId(): number | null {
+  try {
+    const tma = initTMA()
+    return tma.userId
+  } catch {
+    return null
+  }
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -27,6 +39,24 @@ export const useAuthStore = create<AuthState>((set) => ({
       return
     }
     try {
+      const tgUserId = getCurrentTelegramUserId()
+      const storedTgUserId = localStorage.getItem(TG_USER_KEY)
+
+      /* Telegram account switched — sign out */
+      if (tgUserId && storedTgUserId && String(tgUserId) !== storedTgUserId) {
+        await supabase.auth.signOut()
+        /* clear any leftover supabase session in storage */
+        const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'))
+        keys.forEach(k => localStorage.removeItem(k))
+        set({ user: null, loading: false, initialized: true })
+        return
+      }
+
+      /* persist current Telegram user so we can detect switches */
+      if (tgUserId) {
+        localStorage.setItem(TG_USER_KEY, String(tgUserId))
+      }
+
       const { data: { session } } = await supabase.auth.getSession()
       set({ user: session?.user ?? null, loading: false, initialized: true })
 
