@@ -4,6 +4,7 @@ import { useCreditStore } from '../../store/creditStore'
 import { Play, Save, Trash2, Menu, FileDown, Upload } from 'lucide-react'
 import { isTMA, hapticFeedback } from '../../utils/tma'
 import { COST_PER_RUN } from '../../utils/credits'
+import { encodeDownloadData } from '../../utils/downloadLink'
 
 interface ToolbarProps {
   onToggleSidebar: () => void
@@ -56,8 +57,27 @@ export function Toolbar({ onToggleSidebar, onBuyCredits, onOpenExport }: Toolbar
   }
 
   const handleExport = () => {
-    if (!datasetResult) return
-    onOpenExport()
+    if (datasetResult) {
+      onOpenExport()
+      return
+    }
+
+    const wf = {
+      id: activeWorkflowId || Date.now().toString(),
+      name: workflowName,
+      nodes,
+      edges: [],  /* edges are managed internally, export as empty for safety */
+      updatedAt: new Date().toISOString(),
+    }
+    const content = JSON.stringify(wf, null, 2)
+    const filename = `${workflowName.replace(/\s+/g, '_').toLowerCase()}.n8n-dataset.json`
+    const url = encodeDownloadData(content, filename)
+    const telegram = (window as any).Telegram?.WebApp
+    if (telegram?.openLink) {
+      telegram.openLink(url)
+    } else {
+      window.open(url, '_blank')
+    }
   }
 
   const handleImport = () => {
@@ -148,9 +168,8 @@ export function Toolbar({ onToggleSidebar, onBuyCredits, onOpenExport }: Toolbar
 
           <button
             onClick={handleExport}
-            disabled={!datasetResult}
             className="btn-secondary flex items-center gap-1.5 text-xs"
-            title="Export dataset"
+            title={datasetResult ? 'Export dataset' : 'Export workflow'}
           >
             <FileDown size={14} />
             Export
@@ -194,7 +213,7 @@ export function Toolbar({ onToggleSidebar, onBuyCredits, onOpenExport }: Toolbar
                 Save
               </button>
 
-              <button onClick={() => { handleExport(); setShowMobileActions(false) }} disabled={!datasetResult} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-dark-4 hover:bg-n8n-dark-5 text-xs font-medium text-n8n-gray-light hover:text-white transition-colors disabled:opacity-40">
+              <button onClick={() => { handleExport(); setShowMobileActions(false) }} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-n8n-dark-4 hover:bg-n8n-dark-5 text-xs font-medium text-n8n-gray-light hover:text-white transition-colors">
                 <FileDown size={14} />
                 Export
               </button>
