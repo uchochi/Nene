@@ -54,9 +54,14 @@ export function AuthScreen() {
     setLoading(true)
     try {
       if (!supabase) throw new Error('Supabase not configured')
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
       if (signInError) throw signInError
-      await initialize()
+      /* set user directly from sign-in response instead of re-fetching session */
+      if (data?.user) {
+        useAuthStore.getState().setUser(data.user)
+      } else {
+        await initialize()
+      }
     } catch (err: any) {
       setError(err.message ?? 'Sign in failed')
     } finally {
