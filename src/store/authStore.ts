@@ -34,6 +34,15 @@ function getCurrentTelegramUserId(): number | null {
   }
 }
 
+let authListener: { data: { subscription: { unsubscribe: () => void } } } | null = null
+
+function ensureAuthListener(set: (partial: Partial<AuthState>) => void): void {
+  if (authListener || !supabase) return
+  authListener = supabase.auth.onAuthStateChange((_event, session) => {
+    set({ user: session?.user ?? null })
+  })
+}
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   loading: true,
@@ -70,9 +79,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const { data: { session } } = await supabase.auth.getSession()
       set({ user: session?.user ?? null, loading: false, initialized: true })
 
-      supabase.auth.onAuthStateChange((_event, session) => {
-        set({ user: session?.user ?? null })
-      })
+      ensureAuthListener(set)
     } catch {
       set({ user: null, loading: false, initialized: true })
     }
