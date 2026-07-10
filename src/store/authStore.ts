@@ -34,31 +34,6 @@ function getCurrentTelegramUserId(): number | null {
   }
 }
 
-function clearSupabaseStorage(): void {
-  AUTH_STORAGE_KEYS.forEach(k => {
-    try { localStorage.removeItem(k) } catch { /* ignore */ }
-  })
-}
-
-let tgWatchRegistered = false
-
-function registerTgWatch(set: (partial: Partial<AuthState>) => void): void {
-  if (tgWatchRegistered) return
-  tgWatchRegistered = true
-  if (typeof document === 'undefined') return
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'visible') return
-    const currentUserId = getCurrentTelegramUserId()
-    const storedId = localStorage.getItem(TG_USER_KEY)
-    if (currentUserId && storedId && String(currentUserId) !== storedId) {
-      supabase?.auth.signOut().catch(() => {})
-      clearSupabaseStorage()
-      localStorage.removeItem(TG_USER_KEY)
-      set({ user: null })
-    }
-  })
-}
-
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   loading: true,
@@ -79,7 +54,10 @@ export const useAuthStore = create<AuthState>((set) => ({
       /* Telegram account switched — sign out and clear storage */
       if (tgUserId && storedTgUserId && String(tgUserId) !== storedTgUserId) {
         await supabase.auth.signOut()
-        clearSupabaseStorage()
+        AUTH_STORAGE_KEYS.forEach(k => {
+          try { localStorage.removeItem(k) } catch { /* ignore */ }
+        })
+        localStorage.removeItem(TG_USER_KEY)
         set({ user: null, loading: false, initialized: true })
         return
       }
@@ -98,8 +76,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch {
       set({ user: null, loading: false, initialized: true })
     }
-
-    registerTgWatch(set)
   },
 
   signOut: async () => {
