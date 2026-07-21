@@ -181,11 +181,11 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   selectedNodeId: null,
   workflowName: 'Untitled Workflow',
   isRunning: false,
-  onboardingShown: !!localStorage.getItem('n8n-dataset-onboarding-seen'),
+  onboardingShown: !!localStorage.getItem('ooguy-onboarding-seen'),
   apiKey: getEnvApiKey(),
   datasetResult: null,
   history: [],
-  showOnboarding: !localStorage.getItem('n8n-dataset-onboarding-seen'),
+  showOnboarding: !localStorage.getItem('ooguy-onboarding-seen'),
   savedWorkflows: [],
   activeWorkflowId: null,
   isDirty: false,
@@ -269,11 +269,11 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   setWorkflowName: (name) => set({ workflowName: name, isDirty: true }),
   setRunning: (running) => set({ isRunning: running }),
   setOnboardingShown: (shown) => {
-    localStorage.setItem('n8n-dataset-onboarding-seen', shown ? 'true' : '')
+    localStorage.setItem('ooguy-onboarding-seen', shown ? 'true' : '')
     set({ onboardingShown: shown })
   },
   setShowOnboarding: (show) => {
-    if (!show) localStorage.setItem('n8n-dataset-onboarding-seen', 'true')
+    if (!show) localStorage.setItem('ooguy-onboarding-seen', 'true')
     set({ showOnboarding: show })
   },
   setApiKey: (key) => set({ apiKey: key }),
@@ -405,7 +405,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     const wf = get().savedWorkflows.find(w => w.id === id)
     if (!wf) return
     const content = JSON.stringify(wf, null, 2)
-    const filename = `${wf.name.replace(/\s+/g, '_').toLowerCase()}.n8n-dataset.json`
+    const filename = `${wf.name.replace(/\s+/g, '_').toLowerCase()}.ooguy.json`
     const url = encodeDownloadData(content, filename)
     const telegram = (typeof window !== 'undefined' && (window as any).Telegram?.WebApp)
     if (telegram?.openLink) {
@@ -701,8 +701,8 @@ async function callAI(item: Record<string, unknown>, cfg: AITransformNodeConfig,
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
       ...(provider === 'openrouter' ? {
-        'HTTP-Referer': 'https://n8n-dataset.vercel.app',
-        'X-Title': 'n8n Dataset',
+        'HTTP-Referer': 'https://ooguy.vercel.app',
+        'X-Title': 'ooguy',
       } : {}),
     },
     body: JSON.stringify({

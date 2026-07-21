@@ -42,7 +42,7 @@ interface CreditState {
 /*  localStorage helpers ( fallback when supabase is off )  */
 /* ------------------------------------------------------- */
 
-const LS_KEY = 'n8n-dataset-credits'
+const LS_KEY = 'ooguy-credits'
 
 interface LocalCreditData {
   balance: number

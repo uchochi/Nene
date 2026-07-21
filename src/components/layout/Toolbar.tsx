@@ -70,7 +70,7 @@ export function Toolbar({ onToggleSidebar, onBuyCredits, onOpenExport }: Toolbar
       updatedAt: new Date().toISOString(),
     }
     const content = JSON.stringify(wf, null, 2)
-    const filename = `${workflowName.replace(/\s+/g, '_').toLowerCase()}.n8n-dataset.json`
+    const filename = `${workflowName.replace(/\s+/g, '_').toLowerCase()}.ooguy.json`
     const url = encodeDownloadData(content, filename)
     const telegram = (window as any).Telegram?.WebApp
     if (telegram?.openLink) {

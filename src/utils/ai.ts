@@ -37,7 +37,7 @@ export async function callAI(
       'Authorization': `Bearer ${config.apiKey}`,
       ...(config.provider === 'openrouter' ? {
         'HTTP-Referer': window.location.origin,
-        'X-Title': 'n8n Dataset',
+        'X-Title': 'ooguy',
       } : {}),
     },
     body: JSON.stringify({
