@@ -3,14 +3,19 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import { isTMA } from './utils/tma'
 import App from './App'
+import LandingPage from './components/landing/LandingPage'
 
 function boot() {
-  if (!isTMA() && import.meta.env.VITE_REDIRECT_URL) {
-    window.location.href = import.meta.env.VITE_REDIRECT_URL
-  } else {
+  if (isTMA()) {
     createRoot(document.getElementById('root')!).render(
       <StrictMode>
         <App />
+      </StrictMode>,
+    )
+  } else {
+    createRoot(document.getElementById('root')!).render(
+      <StrictMode>
+        <LandingPage />
       </StrictMode>,
     )
   }
