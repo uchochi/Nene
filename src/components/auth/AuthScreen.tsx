@@ -218,7 +218,7 @@ export function AuthScreen() {
           <div className="max-w-[420px] mx-auto w-full">
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-6">
-                <img src="/logo.png" alt="ooguy" className="w-8 h-8" />
+                <img src="/logo.png" alt="ooguy" className="w-9 h-9" />
               </div>
               <h1 className="text-2xl font-bold text-white mb-1.5">
                 {view === 'sign-in' ? 'Log In' : view === 'sign-up' ? 'Create Account' : 'Verify Email'}

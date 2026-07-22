@@ -52,7 +52,7 @@ export default function LandingPage() {
       <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-xl bg-n8n-dark/80 border-b border-n8n-dark-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between h-16 px-6">
           <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="ooguy" className="h-8" />
+            <img src="/logo.png" alt="ooguy" className="h-9" />
           </div>
           <a
             href="https://t.me/ooguybot"
@@ -289,7 +289,7 @@ export default function LandingPage() {
         <div className="hero-orb hero-orb-2" style={{ top: '20%', right: '10%' }} />
         <Section>
           <div className="max-w-3xl mx-auto text-center relative z-10">
-            <img src="/logo.png" alt="ooguy" className="w-16 h-16 mx-auto mb-6 reveal-up" />
+            <img src="/logo.png" alt="ooguy" className="w-[74px] h-[74px] mx-auto mb-6 reveal-up" />
             <h2 className="text-3xl md:text-5xl font-bold mb-6 reveal-up" style={{ animationDelay: '.1s' }}>
               Ready to Build Your Dataset?
             </h2>
@@ -315,7 +315,7 @@ export default function LandingPage() {
       <footer className="border-t border-n8n-dark-4 py-8 px-6">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="ooguy" className="h-5" />
+            <img src="/logo.png" alt="ooguy" className="h-6" />
           </div>
           <p className="text-xs text-n8n-gray">
             Built for AI trainers, linguists, and dataset creators. Powered by{' '}

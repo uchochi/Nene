@@ -146,7 +146,7 @@ export function Sidebar({ isOpen, onClose, onBuyCredits, onOpenSettings }: Sideb
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-n8n-dark-4">
         <div className="flex items-center gap-2">
-          <img src="/logo.png" alt="ooguy" className="w-6 h-6" />
+          <img src="/logo.png" alt="ooguy" className="w-7 h-7" />
         </div>
         <button
           onClick={onClose}
