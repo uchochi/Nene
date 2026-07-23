@@ -1,5 +1,6 @@
 # n8n Dataset
 
+
 A Telegram Mini App for formatting, translating, and structuring data for LLM training — inspired by [n8n.io](https://n8n.io).
 
 Build visual data-processing pipelines using a drag-and-drop node editor. Transform raw content into industry-standard JSONL datasets with rich metadata for fine-tuning AI models.
@@ -7,6 +8,7 @@ Build visual data-processing pipelines using a drag-and-drop node editor. Transf
 ---
 
 ## Features
+
 
 - **Visual workflow editor** — Drag-and-drop node canvas (ReactFlow), styled like n8n
 - **7 node types** — Input, Format, Tag, Group, Translate, AI Transform, Output
