@@ -2,8 +2,11 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import { isTMA } from './utils/tma'
+import { migrateLegacyStorageKeys } from './utils/migrateStorage'
 import App from './App'
 import LandingPage from './components/landing/LandingPage'
+
+migrateLegacyStorageKeys()
 
 function boot() {
   if (isTMA()) {
