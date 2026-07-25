@@ -260,14 +260,10 @@ export default function LandingPage() {
                 </div>
                 <h2 className="text-3xl md:text-4xl font-bold mb-4">Pay As You Go, Scale When Ready</h2>
                 <p className="text-n8n-gray-light max-w-lg mx-auto mb-8">
-                  Start with 75% off your first top-up. Each AI operation uses credits — you only pay for what you process.
-                  Secure payments via Paystack.
+                  Each AI operation uses credits — you only pay for what you process.
+                  Use coupon codes for discounts. Secure payments via Paystack.
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-lg mx-auto">
-                  <div className="bg-n8n-dark-4/60 rounded-xl p-4 border border-n8n-dark-5">
-                    <div className="text-xl font-bold text-n8n-orange mb-1">75%</div>
-                    <div className="text-xs text-n8n-gray">First-Time Bonus</div>
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md mx-auto">
                   <div className="bg-n8n-dark-4/60 rounded-xl p-4 border border-n8n-dark-5">
                     <div className="text-xl font-bold text-n8n-orange mb-1">$10</div>
                     <div className="text-xs text-n8n-gray">Base Top-Up</div>

@@ -59,8 +59,8 @@ function getPaymentOptions(countryCode: string) {
 /*  Coupon codes                                           */
 /* ------------------------------------------------------- */
 
-const COUPONS: Record<string, { discount: number; label: string }> = {
-  'new2026set': { discount: 0.75, label: '75% off — new2026set' },
+const COUPONS: Record<string, { discount: number; label: string; newUsersOnly?: boolean }> = {
+  'new2026set': { discount: 0.75, label: '75% off — new2026set', newUsersOnly: true },
 }
 
 /* ------------------------------------------------------- */
@@ -98,13 +98,8 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
   const paystackRef = useRef<PaystackPop | null>(null)
   const processingRef = useRef(false)
 
-  /* derived: effective discount (first-time 75% OR coupon, whichever is better) */
-  const effectiveDiscount = useMemo(() => {
-    if (isFirst) return 0.75
-    if (appliedCoupon) return appliedCoupon.discount
-    return 0
-  }, [isFirst, appliedCoupon])
-
+  /* derived: discount only via coupon */
+  const effectiveDiscount = appliedCoupon?.discount ?? 0
   const hasDiscount = effectiveDiscount > 0
 
   /* fetch exchange rates on mount */
@@ -132,14 +127,19 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
   const handleApplyCoupon = useCallback(() => {
     const code = couponCode.trim().toLowerCase()
     const coupon = COUPONS[code]
-    if (coupon) {
-      setAppliedCoupon(coupon)
-      setCouponError('')
-    } else {
+    if (!coupon) {
       setAppliedCoupon(null)
       setCouponError('Invalid coupon code')
+      return
     }
-  }, [couponCode])
+    if (coupon.newUsersOnly && !isFirst) {
+      setAppliedCoupon(null)
+      setCouponError('This code is only valid for first-time buyers')
+      return
+    }
+    setAppliedCoupon({ discount: coupon.discount, label: coupon.label })
+    setCouponError('')
+  }, [couponCode, isFirst])
 
   /* compute price in a given currency */
   const priceInCurrency = useCallback((plan: Plan, currency: string): number => {
@@ -153,6 +153,13 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
   const formatPrice = useCallback((plan: Plan, currency: string): string => {
     return formatCurrency(priceInCurrency(plan, currency), currency)
   }, [priceInCurrency])
+
+  /* original (non-discounted) price */
+  const originalPrice = useCallback((plan: Plan, currency: string): string => {
+    const rate = rates[currency] || 1
+    const usdCents = getPlanPrice(plan, isFirst)
+    return formatCurrency(Math.round(paystackAmount(usdCents, rate) / 100), currency)
+  }, [rates, isFirst])
 
   /* step 0 — select plan */
   const handleSelectPlan = useCallback((plan: Plan) => {
@@ -332,44 +339,35 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
                 <p className="text-sm text-n8n-gray-light mt-1">Each credit equals one workflow run or export.</p>
               </div>
 
-              {isFirst && (
-                <div className="p-3.5 rounded-xl bg-green-900/20 border border-green-700/30">
-                  <p className="text-sm text-green-400 font-medium">🎉 75% off — first-time buyer!</p>
-                  <p className="text-xs text-n8n-gray-light mt-1">Discount applied automatically.</p>
+              {/* coupon code — always visible */}
+              <div className="p-3.5 rounded-xl bg-n8n-dark-3 border border-n8n-dark-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Tag size={14} className="text-n8n-orange" />
+                  <span className="text-xs font-semibold text-white">Have a coupon?</span>
                 </div>
-              )}
-
-              {/* coupon code */}
-              {!isFirst && (
-                <div className="p-3.5 rounded-xl bg-n8n-dark-3 border border-n8n-dark-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Tag size={14} className="text-n8n-orange" />
-                    <span className="text-xs font-semibold text-white">Have a coupon?</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={couponCode}
-                      onChange={e => { setCouponCode(e.target.value); setCouponError(''); setAppliedCoupon(null) }}
-                      placeholder="Enter coupon code"
-                      className="input-field flex-1 text-xs"
-                    />
-                    <button
-                      onClick={handleApplyCoupon}
-                      disabled={!couponCode.trim()}
-                      className="btn-primary text-xs px-4 py-2"
-                    >
-                      Apply
-                    </button>
-                  </div>
-                  {couponError && (
-                    <p className="text-xs text-red-400 mt-1.5">{couponError}</p>
-                  )}
-                  {appliedCoupon && (
-                    <p className="text-xs text-green-400 mt-1.5">✓ {appliedCoupon.label}</p>
-                  )}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={couponCode}
+                    onChange={e => { setCouponCode(e.target.value); setCouponError(''); setAppliedCoupon(null) }}
+                    placeholder="Enter coupon code"
+                    className="input-field flex-1 text-xs"
+                  />
+                  <button
+                    onClick={handleApplyCoupon}
+                    disabled={!couponCode.trim()}
+                    className="btn-primary text-xs px-4 py-2"
+                  >
+                    Apply
+                  </button>
                 </div>
-              )}
+                {couponError && (
+                  <p className="text-xs text-red-400 mt-1.5">{couponError}</p>
+                )}
+                {appliedCoupon && (
+                  <p className="text-xs text-green-400 mt-1.5">✓ {appliedCoupon.label}</p>
+                )}
+              </div>
 
               <div className="grid gap-3">
                 {PLANS.map(plan => (
@@ -440,13 +438,18 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
                 <h2 className="text-lg font-bold text-white">{selectedPlan.label}</h2>
                 <p className="text-sm text-n8n-gray-light mt-1">
                   {selectedPlan.credits.toLocaleString()} credits for{' '}
-                  <span className="text-n8n-orange font-semibold">
+                  <span className={`font-semibold ${hasDiscount ? 'text-green-400' : 'text-n8n-orange'}`}>
                     {formatPrice(selectedPlan, selectedCountry.currency)}
                   </span>
+                  {hasDiscount && (
+                    <span className="text-n8n-gray line-through ml-2">
+                      {originalPrice(selectedPlan, selectedCountry.currency)}
+                    </span>
+                  )}
                 </p>
                 {hasDiscount && (
                   <p className="text-xs text-green-400 mt-1">
-                    {isFirst ? '75% first-time discount' : appliedCoupon?.label} applied
+                    {appliedCoupon?.label} applied
                   </p>
                 )}
               </div>
