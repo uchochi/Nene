@@ -76,10 +76,10 @@ interface CreditTopUpProps {
 export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
   const user = useAuthStore(s => s.user)
   const balance = useCreditStore(s => s.balance)
-  const totalPurchased = useCreditStore(s => s.totalPurchased)
+  const transactions = useCreditStore(s => s.transactions)
   const syncWithServer = useCreditStore(s => s.syncWithServer)
 
-  const isFirst = totalPurchased === 0
+  const isFirst = !transactions.some(t => t.status === 'completed')
 
   /* steps: plan → country → payment */
   const [step, setStep] = useState<0 | 1 | 2>(0)
