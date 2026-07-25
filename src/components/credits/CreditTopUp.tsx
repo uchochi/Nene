@@ -117,10 +117,9 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
     setStep(1)
   }, [])
 
-  /* step 1 — select country (for payment) */
+  /* step 1 — select country (for payment options) */
   const handleSelectCountry = useCallback((country: Country) => {
     setSelectedCountry(country)
-    setDisplayCurrency(country.currency)
     setStep(2)
   }, [])
 
@@ -128,7 +127,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
   const handlePayment = useCallback(async (channel: PaymentChannel) => {
     if (!selectedPlan || !selectedCountry || !user?.email) return
 
-    const rate = rates[selectedCountry.currency] || 1
+    const rate = rates[displayCurrency] || 1
     const priceUsdCents = getPlanPrice(selectedPlan, isFirst)
     const amount = paystackAmount(priceUsdCents, rate)
 
@@ -146,7 +145,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
         key: publicKey,
         email: user.email,
         amount,
-        currency: selectedCountry.currency,
+        currency: displayCurrency,
         channels: [channel],
         metadata: {
           plan_id: selectedPlan.id,
@@ -170,7 +169,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
                 planId: selectedPlan.id,
                 credits: selectedPlan.credits,
                 amount,
-                currency: selectedCountry.currency,
+                currency: displayCurrency,
               }),
             })
 
@@ -217,7 +216,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
       setStatus('error')
       setErrorMsg(err instanceof Error ? err.message : 'An unexpected error occurred.')
     }
-  }, [selectedPlan, selectedCountry, user, rates, isFirst, addCredits, syncWithServer])
+  }, [selectedPlan, selectedCountry, user, rates, isFirst, displayCurrency, addCredits, syncWithServer])
 
   /* display price in the selected display currency */
   const displayPrice = useCallback((plan: Plan): string => {
@@ -258,9 +257,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
             </span>
           </div>
           <div className="flex items-center gap-3">
-            {step < 2 && (
-              <CurrencySelector selected={displayCurrency} onChange={setDisplayCurrency} />
-            )}
+            <CurrencySelector selected={displayCurrency} onChange={setDisplayCurrency} />
             <button onClick={onClose} className="p-1 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-white transition-colors">
               <X size={18} />
             </button>
@@ -395,12 +392,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
                   {selectedPlan.credits.toLocaleString()} credits for
                   {' '}
                   <span className="text-n8n-orange font-semibold">
-                    {(() => {
-                      const rate = rates[selectedCountry.currency] || 1
-                      const usdCents = getPlanPrice(selectedPlan, isFirst)
-                      const localCents = paystackAmount(usdCents, rate)
-                      return formatCurrency(Math.round(localCents / 100), selectedCountry.currency)
-                    })()}
+                    {displayPrice(selectedPlan)}
                   </span>
                   {isFirst && <span className="text-xs text-green-400 ml-2">75% off</span>}
                 </p>
