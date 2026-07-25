@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import PaystackPop from '@paystack/inline-js'
 import { useCreditStore } from '../../store/creditStore'
 import { useAuthStore } from '../../store/authStore'
@@ -6,11 +6,10 @@ import {
   PLANS, getPlanPrice, fetchExchangeRates,
   paystackAmount, formatCurrency, type Plan,
 } from '../../utils/credits'
-import { X, Check, ChevronRight, Zap, Loader2, AlertCircle, ArrowLeft } from 'lucide-react'
-import { CurrencySelector } from './CurrencySelector'
+import { X, Check, ChevronRight, Zap, Loader2, AlertCircle, ArrowLeft, Tag } from 'lucide-react'
 
 /* ------------------------------------------------------- */
-/*  Countries                                              */
+/*  Countries (Paystack-supported only)                    */
 /* ------------------------------------------------------- */
 
 interface Country {
@@ -22,42 +21,46 @@ interface Country {
 
 const countries: Country[] = [
   { code: 'NG', name: 'Nigeria',               currency: 'NGN', flag: '🇳🇬' },
-  { code: 'ZA', name: 'South Africa',          currency: 'ZAR', flag: '🇿🇦' },
   { code: 'KE', name: 'Kenya',                 currency: 'KES', flag: '🇰🇪' },
-  { code: 'EG', name: 'Egypt',                 currency: 'EGP', flag: '🇪🇬' },
   { code: 'GH', name: 'Ghana',                 currency: 'GHS', flag: '🇬🇭' },
+  { code: 'ZA', name: 'South Africa',          currency: 'ZAR', flag: '🇿🇦' },
+  { code: 'EG', name: 'Egypt',                 currency: 'EGP', flag: '🇪🇬' },
   { code: 'MA', name: 'Morocco',               currency: 'MAD', flag: '🇲🇦' },
+  { code: 'US', name: 'United States',         currency: 'USD', flag: '🇺🇸' },
   { code: 'GB', name: 'United Kingdom',        currency: 'GBP', flag: '🇬🇧' },
   { code: 'FR', name: 'France',                currency: 'EUR', flag: '🇫🇷' },
   { code: 'DE', name: 'Germany',               currency: 'EUR', flag: '🇩🇪' },
   { code: 'IT', name: 'Italy',                 currency: 'EUR', flag: '🇮🇹' },
   { code: 'ES', name: 'Spain',                 currency: 'EUR', flag: '🇪🇸' },
   { code: 'NL', name: 'Netherlands',           currency: 'EUR', flag: '🇳🇱' },
-  { code: 'US', name: 'United States',         currency: 'USD', flag: '🇺🇸' },
   { code: 'CA', name: 'Canada',                currency: 'CAD', flag: '🇨🇦' },
   { code: 'MX', name: 'Mexico',                currency: 'MXN', flag: '🇲🇽' },
   { code: 'BR', name: 'Brazil',                currency: 'BRL', flag: '🇧🇷' },
-  { code: 'AR', name: 'Argentina',             currency: 'ARS', flag: '🇦🇷' },
-  { code: 'CO', name: 'Colombia',              currency: 'COP', flag: '🇨🇴' },
   { code: 'IN', name: 'India',                 currency: 'INR', flag: '🇮🇳' },
   { code: 'JP', name: 'Japan',                 currency: 'JPY', flag: '🇯🇵' },
-  { code: 'KR', name: 'South Korea',           currency: 'KRW', flag: '🇰🇷' },
   { code: 'SG', name: 'Singapore',             currency: 'SGD', flag: '🇸🇬' },
   { code: 'AE', name: 'United Arab Emirates',  currency: 'AED', flag: '🇦🇪' },
-  { code: 'CN', name: 'China',                 currency: 'CNY', flag: '🇨🇳' },
 ]
 
 type PaymentChannel = 'card' | 'bank_transfer'
 
 function getPaymentOptions(countryCode: string) {
-  const card = { channel: 'card' as const, label: 'Pay with Credit/Debit Card', description: 'Visa, Mastercard, Amex', icon: '💳' }
+  const card = { channel: 'card' as const, label: 'Pay with Card', description: 'Visa, Mastercard', icon: '💳' }
   if (countryCode === 'NG') {
     return [
       card,
-      { channel: 'bank_transfer' as const, label: 'Pay with Bank Transfer (PwT)', description: 'Instant confirmation', icon: '🏦' },
+      { channel: 'bank_transfer' as const, label: 'Pay with Bank Transfer', description: 'Instant confirmation', icon: '🏦' },
     ]
   }
   return [card]
+}
+
+/* ------------------------------------------------------- */
+/*  Coupon codes                                           */
+/* ------------------------------------------------------- */
+
+const COUPONS: Record<string, { discount: number; label: string }> = {
+  'new2026set': { discount: 0.75, label: '75% off — new2026set' },
 }
 
 /* ------------------------------------------------------- */
@@ -74,7 +77,6 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
   const user = useAuthStore(s => s.user)
   const balance = useCreditStore(s => s.balance)
   const totalPurchased = useCreditStore(s => s.totalPurchased)
-  const addCredits = useCreditStore(s => s.addCredits)
   const syncWithServer = useCreditStore(s => s.syncWithServer)
 
   const isFirst = totalPurchased === 0
@@ -83,14 +85,27 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
   const [step, setStep] = useState<0 | 1 | 2>(0)
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null)
-  const [displayCurrency, setDisplayCurrency] = useState('USD')
   const [rates, setRates] = useState<Record<string, number>>({})
   const [ratesLoading, setRatesLoading] = useState(false)
   const [status, setStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
 
+  /* coupon */
+  const [couponCode, setCouponCode] = useState('')
+  const [appliedCoupon, setAppliedCoupon] = useState<{ discount: number; label: string } | null>(null)
+  const [couponError, setCouponError] = useState('')
+
   const paystackRef = useRef<PaystackPop | null>(null)
   const processingRef = useRef(false)
+
+  /* derived: effective discount (first-time 75% OR coupon, whichever is better) */
+  const effectiveDiscount = useMemo(() => {
+    if (isFirst) return 0.75
+    if (appliedCoupon) return appliedCoupon.discount
+    return 0
+  }, [isFirst, appliedCoupon])
+
+  const hasDiscount = effectiveDiscount > 0
 
   /* fetch exchange rates on mount */
   useEffect(() => {
@@ -105,11 +120,39 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
       setStep(0)
       setSelectedPlan(null)
       setSelectedCountry(null)
-      setDisplayCurrency('USD')
       setStatus('idle')
       setErrorMsg('')
+      setCouponCode('')
+      setAppliedCoupon(null)
+      setCouponError('')
     }
   }, [open])
+
+  /* apply coupon */
+  const handleApplyCoupon = useCallback(() => {
+    const code = couponCode.trim().toLowerCase()
+    const coupon = COUPONS[code]
+    if (coupon) {
+      setAppliedCoupon(coupon)
+      setCouponError('')
+    } else {
+      setAppliedCoupon(null)
+      setCouponError('Invalid coupon code')
+    }
+  }, [couponCode])
+
+  /* compute price in a given currency */
+  const priceInCurrency = useCallback((plan: Plan, currency: string): number => {
+    const rate = rates[currency] || 1
+    const usdCents = getPlanPrice(plan, isFirst)
+    const discountedCents = hasDiscount ? Math.round(usdCents * (1 - effectiveDiscount)) : usdCents
+    return Math.round(paystackAmount(discountedCents, rate) / 100)
+  }, [rates, isFirst, hasDiscount, effectiveDiscount])
+
+  /* format price for display */
+  const formatPrice = useCallback((plan: Plan, currency: string): string => {
+    return formatCurrency(priceInCurrency(plan, currency), currency)
+  }, [priceInCurrency])
 
   /* step 0 — select plan */
   const handleSelectPlan = useCallback((plan: Plan) => {
@@ -117,7 +160,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
     setStep(1)
   }, [])
 
-  /* step 1 — select country (for payment options) */
+  /* step 1 — select country */
   const handleSelectCountry = useCallback((country: Country) => {
     setSelectedCountry(country)
     setStep(2)
@@ -127,9 +170,11 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
   const handlePayment = useCallback(async (channel: PaymentChannel) => {
     if (!selectedPlan || !selectedCountry || !user?.email) return
 
-    const rate = rates[displayCurrency] || 1
-    const priceUsdCents = getPlanPrice(selectedPlan, isFirst)
-    const amount = paystackAmount(priceUsdCents, rate)
+    const currency = selectedCountry.currency
+    const rate = rates[currency] || 1
+    const usdCents = getPlanPrice(selectedPlan, isFirst)
+    const discountedCents = hasDiscount ? Math.round(usdCents * (1 - effectiveDiscount)) : usdCents
+    const amount = paystackAmount(discountedCents, rate)
 
     setStatus('processing')
     setErrorMsg('')
@@ -145,12 +190,13 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
         key: publicKey,
         email: user.email,
         amount,
-        currency: displayCurrency,
+        currency,
         channels: [channel],
         metadata: {
           plan_id: selectedPlan.id,
           credits: selectedPlan.credits,
           is_first_purchase: isFirst,
+          coupon_code: appliedCoupon ? couponCode.trim().toLowerCase() : null,
           custom_fields: [
             { display_name: 'Plan', variable_name: 'plan_id', value: selectedPlan.id },
             { display_name: 'Credits', variable_name: 'credits', value: String(selectedPlan.credits) },
@@ -169,7 +215,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
                 planId: selectedPlan.id,
                 credits: selectedPlan.credits,
                 amount,
-                currency: displayCurrency,
+                currency,
               }),
             })
 
@@ -216,15 +262,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
       setStatus('error')
       setErrorMsg(err instanceof Error ? err.message : 'An unexpected error occurred.')
     }
-  }, [selectedPlan, selectedCountry, user, rates, isFirst, displayCurrency, addCredits, syncWithServer])
-
-  /* display price in the selected display currency */
-  const displayPrice = useCallback((plan: Plan): string => {
-    const rate = rates[displayCurrency] || 1
-    const usdCents = getPlanPrice(plan, isFirst)
-    const localCents = paystackAmount(usdCents, rate)
-    return formatCurrency(Math.round(localCents / 100), displayCurrency)
-  }, [rates, displayCurrency, isFirst])
+  }, [selectedPlan, selectedCountry, user, rates, isFirst, hasDiscount, effectiveDiscount, appliedCoupon, couponCode, syncWithServer])
 
   /* close on success after a moment */
   useEffect(() => {
@@ -256,12 +294,9 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
               {step === 0 ? 'Buy Credits' : step === 1 ? 'Select Country' : 'Payment'}
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <CurrencySelector selected={displayCurrency} onChange={setDisplayCurrency} />
-            <button onClick={onClose} className="p-1 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-white transition-colors">
-              <X size={18} />
-            </button>
-          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-white transition-colors">
+            <X size={18} />
+          </button>
         </div>
 
         <div className="p-6 space-y-6">
@@ -279,14 +314,6 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
             <span className="font-semibold text-white tabular-nums">{balance.toLocaleString()} credits</span>
           </div>
 
-          {/* currency switcher instruction */}
-          {step === 0 && (
-            <div className="flex items-center gap-2.5 p-3.5 rounded-xl bg-n8n-orange/10 border border-n8n-orange/20 text-sm">
-              <span className="text-n8n-orange font-semibold">💱 Switch price to your local currency</span>
-              <span className="text-n8n-gray-light text-xs ml-auto">Use the currency selector above</span>
-            </div>
-          )}
-
           {/* progress dots */}
           {step > 0 && (
             <div className="flex items-center gap-2">
@@ -297,7 +324,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
             </div>
           )}
 
-          {/* ──────── STEP 0: Choose Plan ──────── */}
+          {/* ──────── STEP 0: Choose Plan + Coupon ──────── */}
           {step === 0 && (
             <div className="space-y-4">
               <div>
@@ -308,36 +335,69 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
               {isFirst && (
                 <div className="p-3.5 rounded-xl bg-green-900/20 border border-green-700/30">
                   <p className="text-sm text-green-400 font-medium">🎉 75% off — first-time buyer!</p>
-                  <p className="text-xs text-n8n-gray-light mt-1">Discount applied to all plans below.</p>
+                  <p className="text-xs text-n8n-gray-light mt-1">Discount applied automatically.</p>
+                </div>
+              )}
+
+              {/* coupon code */}
+              {!isFirst && (
+                <div className="p-3.5 rounded-xl bg-n8n-dark-3 border border-n8n-dark-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Tag size={14} className="text-n8n-orange" />
+                    <span className="text-xs font-semibold text-white">Have a coupon?</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponCode}
+                      onChange={e => { setCouponCode(e.target.value); setCouponError(''); setAppliedCoupon(null) }}
+                      placeholder="Enter coupon code"
+                      className="input-field flex-1 text-xs"
+                    />
+                    <button
+                      onClick={handleApplyCoupon}
+                      disabled={!couponCode.trim()}
+                      className="btn-primary text-xs px-4 py-2"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                  {couponError && (
+                    <p className="text-xs text-red-400 mt-1.5">{couponError}</p>
+                  )}
+                  {appliedCoupon && (
+                    <p className="text-xs text-green-400 mt-1.5">✓ {appliedCoupon.label}</p>
+                  )}
                 </div>
               )}
 
               <div className="grid gap-3">
-                {PLANS.map(plan => {
-                  const fullPriceUsd = formatCurrency(Math.round(plan.priceUsdCents / 100), 'USD')
-                  return (
-                    <button
-                      key={plan.id}
-                      onClick={() => handleSelectPlan(plan)}
-                      className="flex items-center gap-4 p-4 rounded-xl bg-n8n-dark-3 border border-n8n-dark-4 hover:border-n8n-orange/50 hover:bg-n8n-dark-4 transition-all text-left group"
-                    >
-                      <div className="w-10 h-10 rounded-xl bg-n8n-orange/10 flex items-center justify-center text-lg flex-shrink-0">
-                        <Zap size={20} className="text-n8n-orange" />
+                {PLANS.map(plan => (
+                  <button
+                    key={plan.id}
+                    onClick={() => handleSelectPlan(plan)}
+                    className="flex items-center gap-4 p-4 rounded-xl bg-n8n-dark-3 border border-n8n-dark-4 hover:border-n8n-orange/50 hover:bg-n8n-dark-4 transition-all text-left group"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-n8n-orange/10 flex items-center justify-center text-lg flex-shrink-0">
+                      <Zap size={20} className="text-n8n-orange" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-white">{plan.label}</div>
+                      <div className="text-xs text-n8n-gray">{plan.credits.toLocaleString()} credits</div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="text-sm font-bold text-white">
+                        ${Math.round(plan.priceUsdCents / 100)}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-white">{plan.label}</div>
-                        <div className="text-xs text-n8n-gray">{plan.credits.toLocaleString()} credits</div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className="text-sm font-bold text-white">{displayPrice(plan)}</div>
-                        {isFirst && (
-                          <div className="text-xs text-n8n-gray line-through">{fullPriceUsd}</div>
-                        )}
-                      </div>
-                      <ChevronRight size={18} className="text-n8n-gray-light group-hover:text-n8n-orange transition-colors flex-shrink-0" />
-                    </button>
-                  )
-                })}
+                      {hasDiscount && (
+                        <div className="text-xs text-green-400 font-medium">
+                          {Math.round(effectiveDiscount * 100)}% off
+                        </div>
+                      )}
+                    </div>
+                    <ChevronRight size={18} className="text-n8n-gray-light group-hover:text-n8n-orange transition-colors flex-shrink-0" />
+                  </button>
+                ))}
               </div>
             </div>
           )}
@@ -348,7 +408,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-white">Select your country</h2>
-                  <p className="text-sm text-n8n-gray-light mt-1">Choose your country for payment options.</p>
+                  <p className="text-sm text-n8n-gray-light mt-1">Your payment currency is set by your country.</p>
                 </div>
                 {ratesLoading && <Loader2 size={16} className="animate-spin text-n8n-gray-light" />}
               </div>
@@ -363,18 +423,8 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
                     <span className="text-2xl">{c.flag}</span>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-white truncate">{c.name}</div>
-                      <div className="text-xs text-n8n-gray">{c.code} · {c.currency}</div>
+                      <div className="text-xs text-n8n-gray">{c.code} · Pay in {c.currency}</div>
                     </div>
-                    {selectedPlan && (
-                      <div className="text-right text-sm font-semibold text-n8n-orange tabular-nums flex-shrink-0">
-                        {(() => {
-                          const rate = rates[displayCurrency] || 1
-                          const usdCents = getPlanPrice(selectedPlan, isFirst)
-                          const localCents = paystackAmount(usdCents, rate)
-                          return formatCurrency(Math.round(localCents / 100), displayCurrency)
-                        })()}
-                      </div>
-                    )}
                     <ChevronRight size={16} className="text-n8n-gray-light group-hover:text-n8n-orange transition-colors flex-shrink-0" />
                   </button>
                 ))}
@@ -389,13 +439,16 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
                 <span className="text-3xl block mb-2">{selectedCountry.flag}</span>
                 <h2 className="text-lg font-bold text-white">{selectedPlan.label}</h2>
                 <p className="text-sm text-n8n-gray-light mt-1">
-                  {selectedPlan.credits.toLocaleString()} credits for
-                  {' '}
+                  {selectedPlan.credits.toLocaleString()} credits for{' '}
                   <span className="text-n8n-orange font-semibold">
-                    {displayPrice(selectedPlan)}
+                    {formatPrice(selectedPlan, selectedCountry.currency)}
                   </span>
-                  {isFirst && <span className="text-xs text-green-400 ml-2">75% off</span>}
                 </p>
+                {hasDiscount && (
+                  <p className="text-xs text-green-400 mt-1">
+                    {isFirst ? '75% first-time discount' : appliedCoupon?.label} applied
+                  </p>
+                )}
               </div>
 
               <div className="grid gap-3">
