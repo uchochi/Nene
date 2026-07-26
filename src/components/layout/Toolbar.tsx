@@ -51,9 +51,11 @@ export function Toolbar({ onToggleSidebar, onBuyCredits, onOpenExport }: Toolbar
       return
     }
 
-    await runWorkflow()
-    await deductCredits(COST_PER_RUN)
-    if (isTMA()) hapticFeedback('success')
+    const ok = await runWorkflow()
+    if (ok) {
+      await deductCredits(COST_PER_RUN)
+      if (isTMA()) hapticFeedback('success')
+    }
   }
 
   const handleExport = () => {

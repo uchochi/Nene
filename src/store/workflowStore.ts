@@ -98,7 +98,7 @@ interface WorkflowState {
   setRunning: (running: boolean) => void
   setOnboardingShown: (shown: boolean) => void
   setDatasetResult: (result: string | null) => void
-  runWorkflow: () => Promise<void>
+  runWorkflow: () => Promise<boolean>
 
   /* multi-workflow actions */
   saveWorkflow: () => Promise<void>
@@ -481,7 +481,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   /* ── Pipeline execution ── */
 
-  runWorkflow: async () => {
+  runWorkflow: async (): Promise<boolean> => {
     const { nodes, edges } = get()
     set({ isRunning: true, datasetResult: null })
 
@@ -544,8 +544,10 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
           }
         }
       }
+      return true
     } catch (err) {
       console.error('Workflow error:', err)
+      return false
     } finally {
       set({ isRunning: false })
     }
@@ -645,17 +647,27 @@ function translateData(data: Record<string, unknown>[], cfg: TranslateNodeConfig
 }
 
 async function aiTransform(data: Record<string, unknown>[], cfg: AITransformNodeConfig): Promise<Record<string, unknown>[]> {
-  try {
-    const enhanced = await Promise.all(data.map(async (item) => {
-      const explanation = await callAI(item, cfg)
-      return { ...item, explanation_for_ai: explanation, ai_processed: true }
-    }))
-    return enhanced
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Unknown AI error'
-    console.error('aiTransform failed:', msg)
-    return data.map(item => ({ ...item, ai_processed: false, error: msg }))
+  const results: Record<string, unknown>[] = []
+  const BATCH = 3
+
+  for (let i = 0; i < data.length; i += BATCH) {
+    const batch = data.slice(i, i + BATCH)
+    const batchResults = await Promise.allSettled(
+      batch.map(async (item) => {
+        const explanation = await callAI(item, cfg)
+        return { ...item, explanation_for_ai: explanation, ai_processed: true }
+      })
+    )
+    for (const r of batchResults) {
+      if (r.status === 'fulfilled') {
+        results.push(r.value)
+      } else {
+        const msg = r.reason instanceof Error ? r.reason.message : 'AI error'
+        results.push({ ai_processed: false, error: msg })
+      }
+    }
   }
+  return results
 }
 
 async function aiTransformString(data: string, cfg: AITransformNodeConfig): Promise<Record<string, unknown>[]> {
