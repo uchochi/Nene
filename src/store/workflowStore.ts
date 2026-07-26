@@ -73,7 +73,6 @@ interface WorkflowState {
   workflowName: string
   isRunning: boolean
   onboardingShown: boolean
-  apiKey: string
   datasetResult: string | null
   history: HistoryItem[]
   showOnboarding: boolean
@@ -98,7 +97,6 @@ interface WorkflowState {
   setWorkflowName: (name: string) => void
   setRunning: (running: boolean) => void
   setOnboardingShown: (shown: boolean) => void
-  setApiKey: (key: string) => void
   setDatasetResult: (result: string | null) => void
   runWorkflow: () => Promise<void>
 
@@ -147,14 +145,6 @@ export function getDefaultConfig(type: NodeType): NodeConfig {
   return { ...defaultNodeConfig[type] }
 }
 
-function getEnvApiKey(): string {
-  const provider = import.meta.env.VITE_AI_PROVIDER ?? 'openrouter'
-  if (provider === 'openrouter') {
-    return import.meta.env.OPENROUTER_API_KEY ?? ''
-  }
-  return import.meta.env.VITE_OPENAI_API_KEY ?? ''
-}
-
 function getDefaultModel(): string {
   return import.meta.env.VITE_AI_MODEL ?? 'nvidia/nemotron-3-nano-30b-a3b:free'
 }
@@ -182,7 +172,6 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   workflowName: 'Untitled Workflow',
   isRunning: false,
   onboardingShown: !!localStorage.getItem('ooguy-onboarding-seen'),
-  apiKey: getEnvApiKey(),
   datasetResult: null,
   history: [],
   showOnboarding: !localStorage.getItem('ooguy-onboarding-seen'),
@@ -276,7 +265,6 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     if (!show) localStorage.setItem('ooguy-onboarding-seen', 'true')
     set({ showOnboarding: show })
   },
-  setApiKey: (key) => set({ apiKey: key }),
   setDatasetResult: (result) => set({ datasetResult: result }),
   markClean: () => set({ isDirty: false }),
 
@@ -494,7 +482,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   /* ── Pipeline execution ── */
 
   runWorkflow: async () => {
-    const { nodes, edges, apiKey } = get()
+    const { nodes, edges } = get()
     set({ isRunning: true, datasetResult: null })
 
     try {
@@ -540,9 +528,9 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
           case 'ai': {
             const aiCfg = cfg as AITransformNodeConfig
             if (Array.isArray(data)) {
-              data = await aiTransform(data, aiCfg, apiKey)
+              data = await aiTransform(data, aiCfg)
             } else if (typeof data === 'string') {
-              data = await aiTransformString(data, aiCfg, apiKey)
+              data = await aiTransformString(data, aiCfg)
             }
             break
           }
@@ -656,11 +644,10 @@ function translateData(data: Record<string, unknown>[], cfg: TranslateNodeConfig
   })
 }
 
-async function aiTransform(data: Record<string, unknown>[], cfg: AITransformNodeConfig, apiKey: string): Promise<Record<string, unknown>[]> {
-  if (!apiKey) return data.map(item => ({ ...item, ai_processed: false, error: 'No API key configured' }))
+async function aiTransform(data: Record<string, unknown>[], cfg: AITransformNodeConfig): Promise<Record<string, unknown>[]> {
   try {
     const enhanced = await Promise.all(data.map(async (item) => {
-      const explanation = await callAI(item, cfg, apiKey)
+      const explanation = await callAI(item, cfg)
       return { ...item, explanation_for_ai: explanation, ai_processed: true }
     }))
     return enhanced
@@ -671,10 +658,9 @@ async function aiTransform(data: Record<string, unknown>[], cfg: AITransformNode
   }
 }
 
-async function aiTransformString(data: string, cfg: AITransformNodeConfig, apiKey: string): Promise<Record<string, unknown>[]> {
-  if (!apiKey) return [{ raw: data, ai_processed: false, error: 'No API key configured' }]
+async function aiTransformString(data: string, cfg: AITransformNodeConfig): Promise<Record<string, unknown>[]> {
   try {
-    const response = await callAI({ raw_content: data }, cfg, apiKey)
+    const response = await callAI({ raw_content: data }, cfg)
     return [{ raw_content: data, explanation_for_ai: response, ai_processed: true }]
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Unknown AI error'
@@ -683,46 +669,30 @@ async function aiTransformString(data: string, cfg: AITransformNodeConfig, apiKe
   }
 }
 
-const AI_API: Record<string, string> = {
-  openai: 'https://api.openai.com/v1/chat/completions',
-  openrouter: 'https://openrouter.ai/api/v1/chat/completions',
-}
-
-async function callAI(item: Record<string, unknown>, cfg: AITransformNodeConfig, apiKey: string): Promise<string> {
+async function callAI(item: Record<string, unknown>, cfg: AITransformNodeConfig): Promise<string> {
   const text = JSON.stringify(item, null, 2).slice(0, 3000)
   const userPrompt = cfg.prompt || `Analyze this content and explain the underlying mechanics, cultural context, and linguistic techniques used. Format the output as a JSON object with fields: "setup", "punchline", "humor_mechanics", "cultural_context", "linguistic_context", "explanation_for_ai".\n\nContent: ${text}`
   const provider = getAIProvider()
-  const apiUrl = AI_API[provider] || AI_API.openai
   const model = getDefaultModel()
 
-  const response = await fetch(apiUrl, {
+  const response = await fetch('/api/ai-completion', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-      ...(provider === 'openrouter' ? {
-        'HTTP-Referer': 'https://ooguy.vercel.app',
-        'X-Title': 'ooguy',
-      } : {}),
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model,
       messages: [
         { role: 'system', content: 'You are a data formatting assistant. Analyze content and produce structured JSON output.' },
         { role: 'user', content: userPrompt },
       ],
-      temperature: 0.7,
+      model,
+      provider,
     }),
   })
 
   const result = await response.json()
   if (!response.ok || result.error) {
-    const meta = result.error?.metadata
-    const detail = meta?.raw?.error?.message || meta?.provider_name || ''
-    const msg = result.error?.message || `AI API error: ${response.status}`
-    throw new Error(detail ? `${msg} — ${detail}` : msg)
+    throw new Error(result.error || `AI API error: ${response.status}`)
   }
-  return result.choices?.[0]?.message?.content || 'No response'
+  return result.content || 'No response'
 }
 
 function outputData(data: Record<string, unknown>[], cfg: OutputNodeConfig): string {
