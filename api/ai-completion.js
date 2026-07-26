@@ -40,7 +40,7 @@ export default async function handler(req) {
     }
 
     const apiUrl = AI_API[aiProvider] || AI_API.openai
-    const modelId = model || 'nvidia/nemotron-3-nano-30b-a3b:free'
+    const modelId = model || 'meta-llama/llama-3.1-8b-instruct:free'
 
     const response = await fetch(apiUrl, {
       method: 'POST',

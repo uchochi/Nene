@@ -146,7 +146,7 @@ export function getDefaultConfig(type: NodeType): NodeConfig {
 }
 
 function getDefaultModel(): string {
-  return import.meta.env.VITE_AI_MODEL ?? 'nvidia/nemotron-3-nano-30b-a3b:free'
+  return import.meta.env.VITE_AI_MODEL ?? 'meta-llama/llama-3.1-8b-instruct:free'
 }
 
 function getAIProvider(): string {
