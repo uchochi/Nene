@@ -95,11 +95,8 @@ export const useCreditStore = create<CreditState>((set, get) => ({
           .limit(100)
 
         if (profile) {
-          /* Prefer local balance when it's lower — local has the most recent
-             deductions that may not have synced to Supabase yet */
-          const balance = local.balance < profile.balance
-            ? local.balance
-            : profile.balance
+          /* Always prefer server balance — it's the source of truth */
+          const balance = profile.balance
           const totalPurchased = local.totalPurchased > profile.total_purchased
             ? local.totalPurchased
             : profile.total_purchased
