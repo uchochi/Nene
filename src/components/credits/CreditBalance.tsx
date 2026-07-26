@@ -13,7 +13,7 @@ export function CreditBalance({ onBuyCredits }: CreditBalanceProps) {
 
   return (
     <div
-      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
         empty
           ? 'bg-n8n-red/10 text-n8n-red'
           : low
