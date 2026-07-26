@@ -7,5 +7,5 @@ function encodeB64(str: string): string {
 export function encodeDownloadData(content: string, filename: string): string {
   const d = encodeB64(content)
   const f = encodeB64(filename)
-  return `${DOWNLOADER_BASE}/#d=${encodeURIComponent(d)}&f=${encodeURIComponent(f)}`
+  return `${DOWNLOADER_BASE}/?d=${encodeURIComponent(d)}&f=${encodeURIComponent(f)}`
 }
