@@ -5,18 +5,11 @@ const AI_API = {
   openrouter: 'https://openrouter.ai/api/v1/chat/completions',
 }
 
-export default async function handler(req) {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders() })
-  }
+export async function OPTIONS() {
+  return new Response(null, { headers: corsHeaders() })
+}
 
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-    })
-  }
-
+export async function POST(req) {
   try {
     const { messages, model, provider } = await req.json()
 

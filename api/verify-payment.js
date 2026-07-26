@@ -1,18 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 import { corsHeaders } from './_lib.js'
 
-export default async function handler(req) {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders() })
-  }
+export async function OPTIONS() {
+  return new Response(null, { headers: corsHeaders() })
+}
 
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-    })
-  }
-
+export async function POST(req) {
   const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY
   const supabaseUrl = process.env.VITE_SUPABASE_URL
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY

@@ -1,6 +1,11 @@
 {
   "functions": {
     "api/ai-completion.js": {
+      "runtime": "edge",
+      "maxDuration": 30
+    },
+    "api/verify-payment.js": {
+      "runtime": "edge",
       "maxDuration": 30
     }
   }
