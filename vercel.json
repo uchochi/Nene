@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/ai-completion.js": {
+      "maxDuration": 30
+    }
+  }
+}
