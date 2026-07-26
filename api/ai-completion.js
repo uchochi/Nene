@@ -62,6 +62,7 @@ export default async function handler(req) {
     const result = await response.json()
 
     if (!response.ok || result.error) {
+      console.error('AI API error:', JSON.stringify({ status: response.status, error: result.error, model: modelId }))
       const meta = result.error?.metadata
       const detail = meta?.raw?.error?.message || meta?.provider_name || ''
       const msg = result.error?.message || `AI API error: ${response.status}`
