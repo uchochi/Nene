@@ -55,7 +55,7 @@ export default function LandingPage() {
             <img src="/logo.png" alt="ooguy" className="h-9" />
           </div>
           <a
-            href="https://t.me/ooguybot"
+            href="https://t.me/ooguy_bot"
             target="_blank"
             rel="noopener noreferrer"
             className="btn-primary text-sm px-5 py-2 inline-flex items-center gap-2"
@@ -93,7 +93,7 @@ export default function LandingPage() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 reveal-up" style={{ animationDelay: '.3s' }}>
             <a
-              href="https://t.me/ooguybot"
+              href="https://t.me/ooguy_bot"
               target="_blank"
               rel="noopener noreferrer"
               className="btn-primary text-base px-8 py-3 inline-flex items-center gap-2.5"
@@ -293,7 +293,7 @@ export default function LandingPage() {
               Open ooguy in Telegram and start building production-quality training data in minutes.
             </p>
             <a
-              href="https://t.me/ooguybot"
+              href="https://t.me/ooguy_bot"
               target="_blank"
               rel="noopener noreferrer"
               className="btn-primary text-base px-10 py-3.5 inline-flex items-center gap-2.5 reveal-up"
@@ -314,10 +314,7 @@ export default function LandingPage() {
             <img src="/logo.png" alt="ooguy" className="h-6" />
           </div>
           <p className="text-xs text-n8n-gray">
-            Built for AI trainers, linguists, and dataset creators. Powered by{' '}
-            <a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer" className="text-n8n-orange hover:underline">OpenRouter</a>,
-            <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="text-n8n-orange hover:underline"> Supabase</a>, and{' '}
-            <a href="https://paystack.com" target="_blank" rel="noopener noreferrer" className="text-n8n-orange hover:underline">Paystack</a>.
+            Built for AI trainers, linguists, and dataset creators.
           </p>
           <a href="https://github.com/uchochi/Nene" target="_blank" rel="noopener noreferrer" className="text-xs text-n8n-gray hover:text-n8n-orange transition-colors">
             GitHub

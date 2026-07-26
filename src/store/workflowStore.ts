@@ -150,7 +150,7 @@ export function getDefaultConfig(type: NodeType): NodeConfig {
 function getEnvApiKey(): string {
   const provider = import.meta.env.VITE_AI_PROVIDER ?? 'openrouter'
   if (provider === 'openrouter') {
-    return import.meta.env.VITE_OPENROUTER_API_KEY ?? ''
+    return import.meta.env.OPENROUTER_API_KEY ?? ''
   }
   return import.meta.env.VITE_OPENAI_API_KEY ?? ''
 }

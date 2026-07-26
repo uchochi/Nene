@@ -148,12 +148,22 @@ export function Sidebar({ isOpen, onClose, onBuyCredits, onOpenSettings }: Sideb
         <div className="flex items-center gap-2">
           <img src="/logo.png" alt="ooguy" className="w-7 h-7" />
         </div>
-        <button
-          onClick={onClose}
-          className="p-1 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-white transition-colors lg:hidden"
-        >
-          <X size={16} />
-        </button>
+        <div className="flex items-center gap-1.5">
+          <CreditBalance onBuyCredits={() => onBuyCredits()} />
+          <button
+            onClick={onOpenSettings}
+            className="p-1.5 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-white transition-colors"
+            title="Settings"
+          >
+            <Settings size={16} />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-white transition-colors lg:hidden"
+          >
+            <X size={16} />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -234,18 +244,6 @@ export function Sidebar({ isOpen, onClose, onBuyCredits, onOpenSettings }: Sideb
             </div>
           </div>
         )}
-      </div>
-
-      {/* Footer: credits + settings */}
-      <div className="border-t border-n8n-dark-4 px-3 py-2.5 flex items-center justify-between">
-        <CreditBalance onBuyCredits={() => onBuyCredits()} />
-        <button
-          onClick={onOpenSettings}
-          className="p-1.5 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-white transition-colors"
-          title="Settings"
-        >
-          <Settings size={16} />
-        </button>
       </div>
     </div>
     </>
