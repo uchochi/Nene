@@ -179,6 +179,31 @@
   .label {
     @apply text-xs text-n8n-gray-light font-medium uppercase tracking-wider mb-1.5 block;
   }
+
+  /* ─── Vercel-style navigation ─── */
+  .nav-item {
+    @apply flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium
+           text-n8n-gray-light hover:text-white hover:bg-n8n-dark-4
+           transition-colors duration-150 cursor-pointer;
+  }
+  .nav-item-active {
+    @apply text-white bg-n8n-dark-4;
+  }
+  .nav-item-active .nav-item-indicator {
+    @apply bg-n8n-orange;
+  }
+  .page-container {
+    @apply max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8;
+  }
+  .stat-card {
+    @apply bg-n8n-dark-2 border border-n8n-dark-4 rounded-xl p-5
+           transition-colors duration-150 hover:border-n8n-gray-dark;
+  }
+  .project-card {
+    @apply bg-n8n-dark-2 border border-n8n-dark-4 rounded-xl p-5 cursor-pointer
+           transition-all duration-150 hover:border-n8n-orange/50 hover:bg-n8n-dark-3
+           text-left w-full;
+  }
 }
 
 .react-flow__node {

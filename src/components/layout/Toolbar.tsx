@@ -1,7 +1,8 @@
 import { useRef, useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useWorkflowStore } from '../../store/workflowStore'
 import { useCreditStore } from '../../store/creditStore'
-import { Play, Save, Trash2, Menu, FileDown, Upload } from 'lucide-react'
+import { Play, Save, Trash2, Menu, FileDown, Upload, ArrowLeft } from 'lucide-react'
 import { isTMA, hapticFeedback } from '../../utils/tma'
 import { COST_PER_RUN } from '../../utils/credits'
 import { encodeDownloadData } from '../../utils/downloadLink'
@@ -13,6 +14,7 @@ interface ToolbarProps {
 }
 
 export function Toolbar({ onToggleSidebar, onBuyCredits, onOpenExport }: ToolbarProps) {
+  const navigate = useNavigate()
   const workflowName = useWorkflowStore(s => s.workflowName)
   const setWorkflowName = useWorkflowStore(s => s.setWorkflowName)
   const runWorkflow = useWorkflowStore(s => s.runWorkflow)
@@ -114,9 +116,18 @@ export function Toolbar({ onToggleSidebar, onBuyCredits, onOpenExport }: Toolbar
         <button
           onClick={onToggleSidebar}
           className="p-1.5 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-white transition-colors"
-          title="Toggle sidebar"
+          title="Toggle node palette"
         >
           <Menu size={18} />
+        </button>
+
+        {/* back to projects */}
+        <button
+          onClick={() => navigate('/projects')}
+          className="p-1.5 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-white transition-colors"
+          title="Back to projects"
+        >
+          <ArrowLeft size={18} />
         </button>
 
         <div className="w-px h-6 bg-n8n-dark-4" />

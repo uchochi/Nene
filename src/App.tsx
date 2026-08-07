@@ -1,15 +1,14 @@
-import { useEffect, useState, useCallback } from 'react'
-import { ReactFlowProvider } from 'reactflow'
-import { Sidebar } from './components/layout/Sidebar'
-import { Toolbar } from './components/layout/Toolbar'
-import { Canvas } from './components/layout/Canvas'
-import { ConfigPanel } from './components/nodes/ConfigPanel'
+import { useEffect } from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { OnboardingScreen } from './components/onboarding/OnboardingScreen'
-import { DatasetPreview } from './components/dataset/DatasetPreview'
 import { AuthScreen } from './components/auth/AuthScreen'
-import { CreditTopUp } from './components/credits/CreditTopUp'
-import { SettingsModal } from './components/settings/SettingsModal'
-import { ExportModal } from './components/export/ExportModal'
+import { GlobalLayout } from './components/layout/GlobalLayout'
+import { OverviewPage } from './pages/OverviewPage'
+import { ProjectsPage } from './pages/ProjectsPage'
+import { HistoryPage } from './pages/HistoryPage'
+import { CreditsPage } from './pages/CreditsPage'
+import { SettingsPage } from './pages/SettingsPage'
+import { ProjectEditorPage } from './pages/ProjectEditorPage'
 import { useWorkflowStore } from './store/workflowStore'
 import { useCreditStore } from './store/creditStore'
 import { useAuthStore } from './store/authStore'
@@ -17,11 +16,9 @@ import { initTMA } from './utils/tma'
 
 export default function App() {
   const showOnboarding = useWorkflowStore(s => s.showOnboarding)
-  const selectedNodeId = useWorkflowStore(s => s.selectedNodeId)
-  const datasetResult = useWorkflowStore(s => s.datasetResult)
   const wfInitialized = useWorkflowStore(s => s.initialized)
   const wfInitialize = useWorkflowStore(s => s.initialize)
-  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768)
+
   const user = useAuthStore(s => s.user)
   const loading = useAuthStore(s => s.loading)
   const initialized = useAuthStore(s => s.initialized)
@@ -30,16 +27,6 @@ export default function App() {
 
   const creditInitialized = useCreditStore(s => s.initialized)
   const creditInitialize = useCreditStore(s => s.initialize)
-
-  const [showTopUp, setShowTopUp] = useState(false)
-  const [topUpReason, setTopUpReason] = useState('')
-  const [showSettings, setShowSettings] = useState(false)
-  const [showExport, setShowExport] = useState(false)
-
-  const onBuyCredits = useCallback((reason = '') => {
-    setTopUpReason(reason)
-    setShowTopUp(true)
-  }, [])
 
   useEffect(() => {
     initTMA()
@@ -90,22 +77,22 @@ export default function App() {
   }
 
   return (
-    <ReactFlowProvider>
-      <CreditTopUp open={showTopUp} onClose={() => setShowTopUp(false)} reason={topUpReason} />
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
-      {showExport && <ExportModal open={showExport} onClose={() => setShowExport(false)} />}
+    <Routes>
+      {/* account-level pages share the global Vercel-style sidebar */}
+      <Route element={<GlobalLayout />}>
+        <Route path="/" element={<OverviewPage />} />
+        <Route path="/projects" element={<ProjectsPage />} />
+        <Route path="/history" element={<HistoryPage />} />
+        <Route path="/credits" element={<CreditsPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+      </Route>
 
-      <div className="h-screen w-screen flex flex-col overflow-hidden bg-n8n-dark">
-        <Toolbar onToggleSidebar={() => setSidebarOpen(v => !v)} onBuyCredits={onBuyCredits} onOpenExport={() => setShowExport(true)} />
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} onBuyCredits={onBuyCredits} onOpenSettings={() => setShowSettings(true)} />
-          <div className="flex-1 flex flex-col overflow-hidden relative">
-            <Canvas />
-            {datasetResult && <DatasetPreview />}
-          </div>
-          {selectedNodeId && <ConfigPanel />}
-        </div>
-      </div>
-    </ReactFlowProvider>
+      {/* project editor — node palette + canvas + toolbar only */}
+      <Route path="/projects/new" element={<ProjectEditorPage />} />
+      <Route path="/projects/:id" element={<ProjectEditorPage />} />
+
+      {/* fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }

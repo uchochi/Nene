@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import PaystackPop from '@paystack/inline-js'
 import { useCreditStore } from '../../store/creditStore'
 import { useAuthStore } from '../../store/authStore'
