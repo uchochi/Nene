@@ -1,8 +1,16 @@
-import { useCallback } from 'react'
+import { useCallback, useState, useRef, type ChangeEvent, type DragEvent } from 'react'
 import { useWorkflowStore, type NodeType, type NodeConfig } from '../../store/workflowStore'
-import type { InputNodeConfig, FormatNodeConfig, TagNodeConfig, GroupNodeConfig, TranslateNodeConfig, OutputNodeConfig, AITransformNodeConfig } from '../../store/workflowStore'
-import { X, Trash2 } from 'lucide-react'
+import type {
+  InputNodeConfig, FormatNodeConfig, TagNodeConfig, GroupNodeConfig,
+  TranslateNodeConfig, OutputNodeConfig, AITransformNodeConfig,
+  MediaInputNodeConfig, OCRNodeConfig, TranscribeNodeConfig,
+  CaptionNodeConfig, VisionAINodeConfig,
+} from '../../store/workflowStore'
+import { useAuthStore } from '../../store/authStore'
+import { X, Trash2, Upload, AlertCircle, FileText, CheckCircle2 } from 'lucide-react'
 import { getNodeColor } from '../../store/workflowStore'
+import { uploadMedia } from '../../utils/mediaUpload'
+import { isSupportedMime, type MediaAsset } from '../../types/media'
 
 const nodeIcons: Record<string, string> = {
   input: '📥',
@@ -12,6 +20,11 @@ const nodeIcons: Record<string, string> = {
   translate: '🌐',
   output: '📤',
   ai: '🤖',
+  'media-input': '🖼️',
+  ocr: '🔍',
+  transcribe: '🎙️',
+  caption: '💬',
+  'vision-ai': '👁️',
 }
 
 const nodeLabels: Record<string, string> = {
@@ -22,6 +35,11 @@ const nodeLabels: Record<string, string> = {
   translate: 'Translate Config',
   output: 'Output Config',
   ai: 'AI Transform Config',
+  'media-input': 'Media Input Config',
+  ocr: 'OCR Config',
+  transcribe: 'Transcribe Config',
+  caption: 'Caption Config',
+  'vision-ai': 'Vision AI Config',
 }
 
 export function ConfigPanel() {
@@ -30,6 +48,17 @@ export function ConfigPanel() {
   const selectNode = useWorkflowStore(s => s.selectNode)
   const updateNodeConfig = useWorkflowStore(s => s.updateNodeConfig)
   const removeSelectedNode = useWorkflowStore(s => s.removeSelectedNode)
+  const setMediaForNode = useWorkflowStore(s => s.setMediaForNode)
+  const sessionId = useWorkflowStore(s => s.sessionId)
+  const userId = useAuthStore(s => s.user?.id ?? null)
+
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const update = useCallback((field: string, value: unknown) => {
+    if (selectedNodeId) updateNodeConfig(selectedNodeId, { [field]: value })
+  }, [selectedNodeId, updateNodeConfig])
 
   const selectedNode = nodes.find(n => n.id === selectedNodeId)
   if (!selectedNode || !selectedNodeId) return null
@@ -40,9 +69,43 @@ export function ConfigPanel() {
   const icon = nodeIcons[nodeType] || '⬜'
   const label = nodeLabels[nodeType] || 'Config'
 
-  const update = useCallback((field: string, value: unknown) => {
-    updateNodeConfig(selectedNodeId, { [field]: value })
-  }, [selectedNodeId, updateNodeConfig])
+  async function handleFileUpload(file: File): Promise<void> {
+    if (!userId) {
+      setUploadError('You must be signed in to upload files')
+      return
+    }
+    if (!isSupportedMime(file.type)) {
+      setUploadError(`Unsupported file type: ${file.type}`)
+      return
+    }
+
+    setUploading(true)
+    setUploadError(null)
+    try {
+      const mediaAsset = await uploadMedia(file, userId, sessionId)
+      setMediaForNode(selectedNodeId!, mediaAsset)
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  function onFileInputChange(e: ChangeEvent<HTMLInputElement>): void {
+    const file = e.target.files?.[0]
+    if (file) handleFileUpload(file)
+    // Reset input so the same file can be selected again
+    e.target.value = ''
+  }
+
+  function onDrop(e: DragEvent<HTMLDivElement>): void {
+    e.preventDefault()
+    const file = e.dataTransfer.files?.[0]
+    if (file) handleFileUpload(file)
+  }
+
+  const mediaConfig = nodeType === 'media-input' ? (config as MediaInputNodeConfig) : null
+  const currentMedia = mediaConfig?.media
 
   return (
     <div className="panel w-80 flex-shrink-0 flex flex-col max-h-full overflow-hidden">
@@ -106,6 +169,67 @@ export function ConfigPanel() {
               />
             </div>
           </>
+        )}
+
+        {/* ── Media Input Node ── */}
+        {nodeType === 'media-input' && (
+          <MediaInputSection
+            media={currentMedia ?? null}
+            uploading={uploading}
+            uploadError={uploadError}
+            fileInputRef={fileInputRef}
+            onFileInputChange={onFileInputChange}
+            onDrop={onDrop}
+            onClearError={() => setUploadError(null)}
+          />
+        )}
+
+        {/* ── OCR Node ── */}
+        {nodeType === 'ocr' && (
+          <AIModelSection
+            prompt={(config as OCRNodeConfig).prompt}
+            model={(config as OCRNodeConfig).model}
+            defaultPrompt="Extract ALL text visible in this image. Output only the extracted text, preserving line breaks."
+            promptPlaceholder="Leave empty for default OCR prompt..."
+            modelPlaceholder="nvidia/nemotron-nano-12b-v2-vl:free"
+            update={update}
+          />
+        )}
+
+        {/* ── Transcribe Node ── */}
+        {nodeType === 'transcribe' && (
+          <AIModelSection
+            prompt={(config as TranscribeNodeConfig).prompt}
+            model={(config as TranscribeNodeConfig).model}
+            defaultPrompt="Transcribe this audio file accurately."
+            promptPlaceholder="Leave empty for default transcription prompt..."
+            modelPlaceholder="google/gemini-2.5-flash-preview"
+            update={update}
+          />
+        )}
+
+        {/* ── Caption Node ── */}
+        {nodeType === 'caption' && (
+          <AIModelSection
+            prompt={(config as CaptionNodeConfig).prompt}
+            model={(config as CaptionNodeConfig).model}
+            defaultPrompt="Describe this image in detail."
+            promptPlaceholder="Leave empty for default caption prompt..."
+            modelPlaceholder="nvidia/nemotron-nano-12b-v2-vl:free"
+            update={update}
+          />
+        )}
+
+        {/* ── Vision AI Node ── */}
+        {nodeType === 'vision-ai' && (
+          <AIModelSection
+            prompt={(config as VisionAINodeConfig).prompt}
+            model={(config as VisionAINodeConfig).model}
+            defaultPrompt="Analyze this image and produce structured JSON (image_description, image_text, visual_elements, context, explanation_for_ai)."
+            promptPlaceholder="Leave empty for default vision analysis prompt..."
+            modelPlaceholder="nvidia/nemotron-nano-12b-v2-vl:free"
+            update={update}
+          />
         )}
 
         {nodeType === 'format' && (
@@ -233,5 +357,180 @@ export function ConfigPanel() {
         )}
       </div>
     </div>
+  )
+}
+
+/* ── Sub-components for multimodal node configs ── */
+
+interface MediaInputSectionProps {
+  media: MediaAsset | null
+  uploading: boolean
+  uploadError: string | null
+  fileInputRef: React.RefObject<HTMLInputElement>
+  onFileInputChange: (e: ChangeEvent<HTMLInputElement>) => void
+  onDrop: (e: DragEvent<HTMLDivElement>) => void
+  onClearError: () => void
+}
+
+function MediaInputSection({
+  media, uploading, uploadError, fileInputRef, onFileInputChange, onDrop, onClearError,
+}: MediaInputSectionProps) {
+  const [dragOver, setDragOver] = useState(false)
+
+  return (
+    <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif,audio/wav,audio/mpeg,audio/aac,audio/ogg,audio/flac,audio/mp4,audio/x-m4a,audio/aiff,audio/x-aiff,video/mp4,video/mpeg,video/quicktime,video/webm,application/pdf"
+        onChange={onFileInputChange}
+        className="hidden"
+      />
+
+      {/* Upload error */}
+      {uploadError && (
+        <div className="flex items-start gap-2 p-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-400">
+          <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
+          <span className="flex-1">{uploadError}</span>
+          <button onClick={onClearError} className="text-red-400 hover:text-red-300">×</button>
+        </div>
+      )}
+
+      {/* No media uploaded yet */}
+      {!media && (
+        <div
+          onClick={() => !uploading && fileInputRef.current?.click()}
+          onDrop={onDrop}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+          onDragLeave={() => setDragOver(false)}
+          className={`
+            cursor-pointer rounded-xl border-2 border-dashed p-6 text-center transition-colors
+            ${dragOver ? 'border-n8n-orange bg-n8n-orange/5' : 'border-n8n-dark-5 hover:border-n8n-purple-light'}
+          `}
+        >
+          <Upload size={28} className="mx-auto mb-2 text-n8n-gray-light" />
+          <p className="text-sm text-n8n-gray-light font-medium">
+            {uploading ? 'Uploading...' : 'Click or drop file here'}
+          </p>
+          <p className="text-xs text-n8n-gray mt-1">
+            Images, audio, video, PDF · Max 50MB
+          </p>
+        </div>
+      )}
+
+      {/* Media uploaded — show preview */}
+      {media && media.status === 'uploaded' && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-green-500/10 border border-green-500/20">
+            <CheckCircle2 size={16} className="text-green-400 flex-shrink-0" />
+            <span className="text-xs text-green-400 truncate flex-1">{media.filename}</span>
+          </div>
+
+          {/* Image preview */}
+          {media.type === 'image' && media.signedUrl && (
+            <img
+              src={media.signedUrl}
+              alt={media.filename}
+              className="w-full rounded-lg border border-n8n-dark-5 max-h-48 object-cover"
+            />
+          )}
+
+          {/* Audio preview */}
+          {media.type === 'audio' && media.signedUrl && (
+            <audio controls className="w-full h-9" src={media.signedUrl} />
+          )}
+
+          {/* Video preview */}
+          {media.type === 'video' && media.signedUrl && (
+            <video controls className="w-full rounded-lg max-h-48" src={media.signedUrl} />
+          )}
+
+          {/* Document icon */}
+          {media.type === 'document' && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-n8n-dark-4">
+              <FileText size={20} className="text-n8n-gray-light" />
+              <span className="text-xs text-n8n-gray-light">PDF Document</span>
+            </div>
+          )}
+
+          <div className="text-xs text-n8n-gray space-y-0.5">
+            <div>Type: {media.type} · {media.mimeType}</div>
+            <div>Size: {(media.size / 1024 / 1024).toFixed(2)} MB</div>
+          </div>
+
+          <button
+            onClick={() => !uploading && fileInputRef.current?.click()}
+            disabled={uploading}
+            className="w-full py-2 rounded-lg bg-n8n-dark-4 hover:bg-n8n-dark-5 text-sm text-n8n-gray-light transition-colors disabled:opacity-50"
+          >
+            Replace file
+          </button>
+          <p className="text-xs text-n8n-gray text-center">
+            Note: File is session-scoped and will be deleted when you close this session.
+          </p>
+        </div>
+      )}
+
+      {/* Needs re-upload (session expired / workflow loaded) */}
+      {media && media.status === 'needsUpload' && (
+        <div className="space-y-3">
+          <div className="flex items-start gap-2 p-2.5 rounded-lg bg-n8n-orange/10 border border-n8n-orange/30">
+            <AlertCircle size={14} className="flex-shrink-0 mt-0.5 text-n8n-orange" />
+            <div className="flex-1">
+              <p className="text-xs text-n8n-orange font-medium">Re-upload required</p>
+              <p className="text-xs text-n8n-gray-light mt-0.5">
+                Previous file: <span className="font-mono">{media.filename}</span> ({media.mimeType})
+              </p>
+              <p className="text-xs text-n8n-gray mt-0.5">
+                Files are temporary — they're deleted when a session ends.
+                The workflow is preserved; just upload again.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => !uploading && fileInputRef.current?.click()}
+            disabled={uploading}
+            className="w-full py-2.5 rounded-lg bg-n8n-orange hover:bg-n8n-orange-light text-sm text-white font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            <Upload size={16} />
+            {uploading ? 'Uploading...' : 'Re-upload file'}
+          </button>
+        </div>
+      )}
+    </>
+  )
+}
+
+interface AIModelSectionProps {
+  prompt: string | undefined
+  model: string | undefined
+  defaultPrompt: string
+  promptPlaceholder: string
+  modelPlaceholder: string
+  update: (field: string, value: unknown) => void
+}
+
+function AIModelSection({ prompt, model, promptPlaceholder, modelPlaceholder, update }: AIModelSectionProps) {
+  return (
+    <>
+      <div>
+        <label className="label">Custom Prompt</label>
+        <textarea
+          className="textarea-field"
+          value={prompt || ''}
+          onChange={e => update('prompt', e.target.value)}
+          placeholder={promptPlaceholder}
+        />
+      </div>
+      <div>
+        <label className="label">Model</label>
+        <input
+          className="input-field font-mono text-xs"
+          value={model || ''}
+          onChange={e => update('model', e.target.value)}
+          placeholder={modelPlaceholder}
+        />
+      </div>
+    </>
   )
 }

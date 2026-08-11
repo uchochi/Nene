@@ -11,6 +11,11 @@ const nodeIcons: Record<string, string> = {
   translate: '🌐',
   output: '📤',
   ai: '🤖',
+  'media-input': '🖼️',
+  ocr: '🔍',
+  transcribe: '🎙️',
+  caption: '💬',
+  'vision-ai': '👁️',
 }
 
 function CustomNode({ data, selected }: NodeProps) {
@@ -18,6 +23,11 @@ function CustomNode({ data, selected }: NodeProps) {
   const color = getNodeColor(nodeType)
   const icon = nodeIcons[nodeType] || '⬜'
   const label = data.config?.label || nodeType
+
+  // Media badge: shows upload status on Media Input nodes
+  const hasMedia = nodeType === 'media-input'
+  const mediaStatus = hasMedia ? data.config?.media?.status : null
+  const mediaFilename = hasMedia ? data.config?.media?.filename : null
 
   return (
     <div
@@ -41,6 +51,30 @@ function CustomNode({ data, selected }: NodeProps) {
           style={{ backgroundColor: color }}
         />
       </div>
+
+      {/* Media status badge for Media Input nodes */}
+      {hasMedia && (
+        <div className="mt-2 pt-2 border-t border-n8n-dark-5 text-xs">
+          {mediaStatus === 'uploaded' && (
+            <span className="flex items-center gap-1 text-green-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+              <span className="truncate">{mediaFilename || 'File ready'}</span>
+            </span>
+          )}
+          {mediaStatus === 'needsUpload' && (
+            <span className="flex items-center gap-1 text-n8n-orange">
+              <span className="w-1.5 h-1.5 rounded-full bg-n8n-orange" />
+              <span className="truncate">Re-upload: {mediaFilename || 'needed'}</span>
+            </span>
+          )}
+          {!mediaStatus && (
+            <span className="flex items-center gap-1 text-n8n-gray">
+              <span className="w-1.5 h-1.5 rounded-full bg-n8n-gray" />
+              <span>No file uploaded</span>
+            </span>
+          )}
+        </div>
+      )}
 
       <Handle type="source" position={Position.Bottom} className="!bg-n8n-orange" />
     </div>

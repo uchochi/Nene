@@ -11,11 +11,16 @@ interface PaletteItem {
 
 const paletteItems: PaletteItem[] = [
   { type: 'input', label: 'Input', icon: '📥', color: '#4CAF50', description: 'Raw text, JSON, or CSV' },
+  { type: 'media-input', label: 'Media Input', icon: '🖼️', color: '#8B5CF6', description: 'Upload image, audio, video, PDF' },
   { type: 'format', label: 'Format', icon: '🔧', color: '#2196F3', description: 'JSONL / JSON structure' },
   { type: 'tag', label: 'Tag & Categorize', icon: '🏷️', color: '#FF9800', description: 'Add tags & categories' },
   { type: 'group', label: 'Group', icon: '📂', color: '#9C27B0', description: 'Group by field' },
   { type: 'translate', label: 'Translate', icon: '🌐', color: '#00BCD4', description: 'Multi-language support' },
   { type: 'ai', label: 'AI Transform', icon: '🤖', color: '#E91E63', description: 'LLM-powered analysis' },
+  { type: 'ocr', label: 'OCR', icon: '🔍', color: '#F59E0B', description: 'Extract text from images' },
+  { type: 'transcribe', label: 'Transcribe', icon: '🎙️', color: '#14B8A6', description: 'Audio → text via AI' },
+  { type: 'caption', label: 'Caption', icon: '💬', color: '#D946EF', description: 'AI image description' },
+  { type: 'vision-ai', label: 'Vision AI', icon: '👁️', color: '#6366F1', description: 'Multimodal structured analysis' },
   { type: 'output', label: 'Output', icon: '📤', color: '#F44336', description: 'JSONL / JSON / CSV export' },
 ]
 

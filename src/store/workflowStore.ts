@@ -8,8 +8,12 @@ import {
 import { v4 as uuidv4 } from 'uuid'
 import { supabase } from '../lib/supabase'
 import { encodeDownloadData } from '../utils/downloadLink'
+import type { MediaAsset, MediaType } from '../types/media'
+import { deleteSessionMedia } from '../utils/mediaUpload'
 
-export type NodeType = 'input' | 'format' | 'tag' | 'group' | 'translate' | 'output' | 'ai'
+export type NodeType =
+  | 'input' | 'format' | 'tag' | 'group' | 'translate' | 'output' | 'ai'
+  | 'media-input' | 'ocr' | 'transcribe' | 'caption' | 'vision-ai'
 
 export interface NodeConfig {
   label: string
@@ -46,6 +50,36 @@ export interface OutputNodeConfig extends NodeConfig {
 }
 export interface AITransformNodeConfig extends NodeConfig {
   prompt: string
+  label: string
+}
+
+/* ── Multimodal node configs ── */
+
+export interface MediaInputNodeConfig extends NodeConfig {
+  /** The uploaded media asset, or null if nothing uploaded yet */
+  media: MediaAsset | null
+  /** Which media types this input accepts */
+  acceptedTypes: MediaType[]
+  label: string
+}
+export interface OCRNodeConfig extends NodeConfig {
+  prompt: string
+  model: string
+  label: string
+}
+export interface TranscribeNodeConfig extends NodeConfig {
+  prompt: string
+  model: string
+  label: string
+}
+export interface CaptionNodeConfig extends NodeConfig {
+  prompt: string
+  model: string
+  label: string
+}
+export interface VisionAINodeConfig extends NodeConfig {
+  prompt: string
+  model: string
   label: string
 }
 
@@ -87,6 +121,11 @@ interface WorkflowState {
   userId: string | null
   initialize: (userId: string) => Promise<void>
 
+  /* ephemeral media session */
+  sessionId: string
+  setMediaForNode: (nodeId: string, media: MediaAsset | null) => void
+  clearSessionMedia: () => Promise<void>
+
   onNodesChange: OnNodesChange
   onEdgesChange: OnEdgesChange
   onConnect: OnConnect
@@ -117,6 +156,10 @@ interface WorkflowState {
   setShowOnboarding: (show: boolean) => void
 }
 
+function getDefaultModelSafe(envVar: string, fallback: string): string {
+  return import.meta.env[envVar] ?? fallback
+}
+
 const defaultNodeConfig: Record<NodeType, NodeConfig> = {
   input: { label: 'Input', contentType: 'text', content: '' },
   format: { label: 'Format', formatType: 'jsonl', includeMetadata: true },
@@ -125,6 +168,11 @@ const defaultNodeConfig: Record<NodeType, NodeConfig> = {
   translate: { label: 'Translate', targetLanguages: '', preserveMechanics: true },
   output: { label: 'Output', format: 'jsonl' },
   ai: { label: 'AI Transform', prompt: '' },
+  'media-input': { label: 'Media Input', media: null, acceptedTypes: ['image', 'audio', 'video', 'document'] },
+  ocr: { label: 'OCR', prompt: '', model: getDefaultModelSafe('VITE_OCR_MODEL', 'nvidia/nemotron-nano-12b-v2-vl:free') },
+  transcribe: { label: 'Transcribe', prompt: '', model: getDefaultModelSafe('VITE_TRANSCRIBE_MODEL', 'google/gemini-2.5-flash-preview') },
+  caption: { label: 'Caption', prompt: '', model: getDefaultModelSafe('VITE_CAPTION_MODEL', 'nvidia/nemotron-nano-12b-v2-vl:free') },
+  'vision-ai': { label: 'Vision AI', prompt: '', model: getDefaultModelSafe('VITE_VISION_MODEL', 'nvidia/nemotron-nano-12b-v2-vl:free') },
 }
 
 const nodeColors: Record<NodeType, string> = {
@@ -135,6 +183,11 @@ const nodeColors: Record<NodeType, string> = {
   translate: '#00BCD4',
   output: '#F44336',
   ai: '#E91E63',
+  'media-input': '#8B5CF6',
+  ocr: '#F59E0B',
+  transcribe: '#14B8A6',
+  caption: '#D946EF',
+  'vision-ai': '#6366F1',
 }
 
 export function getNodeColor(type: NodeType): string {
@@ -180,6 +233,30 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   isDirty: false,
   initialized: false,
   userId: null,
+  sessionId: uuidv4(),
+
+  /* ── Ephemeral media session ── */
+
+  setMediaForNode: (nodeId, media) => {
+    set({
+      nodes: get().nodes.map(n =>
+        n.id === nodeId
+          ? { ...n, data: { ...n.data, config: { ...n.data.config, media } } }
+          : n
+      ),
+      isDirty: true,
+    })
+  },
+
+  clearSessionMedia: async () => {
+    const { userId, sessionId } = get()
+    if (!userId) return
+    try {
+      await deleteSessionMedia(userId, sessionId)
+    } catch (err) {
+      console.error('Failed to clear session media:', err)
+    }
+  },
 
   initialize: async (userId: string) => {
     set({ userId })
@@ -274,11 +351,16 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     const { nodes, edges, workflowName, activeWorkflowId, savedWorkflows, userId } = get()
     if (!userId || !supabase) return
 
+    // Strip ephemeral media data before persisting — only metadata survives.
+    // signedUrl is removed and status becomes 'needsUpload' so that when the
+    // workflow is reloaded, Media Input nodes show a re-upload prompt.
+    const nodesToSave = stripEphemeralMedia(nodes)
+
     if (activeWorkflowId) {
       const now = new Date().toISOString()
       await supabase.from('workflows').update({
         name: workflowName,
-        nodes: JSON.parse(JSON.stringify(nodes)),
+        nodes: JSON.parse(JSON.stringify(nodesToSave)),
         edges: JSON.parse(JSON.stringify(edges)),
         updated_at: now,
       }).eq('id', activeWorkflowId).eq('user_id', userId)
@@ -299,7 +381,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         id,
         user_id: userId,
         name: workflowName,
-        nodes: JSON.parse(JSON.stringify(nodes)),
+        nodes: JSON.parse(JSON.stringify(nodesToSave)),
         edges: JSON.parse(JSON.stringify(edges)),
         created_at: now,
         updated_at: now,
@@ -327,6 +409,8 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       selectedNodeId: null,
       datasetResult: null,
       isDirty: false,
+      // New session for the loaded workflow — old media files are gone
+      sessionId: uuidv4(),
     })
   },
 
@@ -448,6 +532,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       selectedNodeId: null,
       datasetResult: null,
       isDirty: false,
+      sessionId: uuidv4(),
     })
   },
 
@@ -497,6 +582,11 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
             data = inputCfg.content
             break
           }
+          case 'media-input': {
+            const mediaCfg = cfg as MediaInputNodeConfig
+            data = mediaInputToItems(mediaCfg)
+            break
+          }
           case 'format': {
             const fmtCfg = cfg as FormatNodeConfig
             if (typeof data === 'string') {
@@ -531,6 +621,34 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
               data = await aiTransform(data, aiCfg)
             } else if (typeof data === 'string') {
               data = await aiTransformString(data, aiCfg)
+            }
+            break
+          }
+          case 'ocr': {
+            const ocrCfg = cfg as OCRNodeConfig
+            if (Array.isArray(data)) {
+              data = await ocrProcess(data, ocrCfg)
+            }
+            break
+          }
+          case 'transcribe': {
+            const trCfg = cfg as TranscribeNodeConfig
+            if (Array.isArray(data)) {
+              data = await transcribeProcess(data, trCfg)
+            }
+            break
+          }
+          case 'caption': {
+            const capCfg = cfg as CaptionNodeConfig
+            if (Array.isArray(data)) {
+              data = await captionProcess(data, capCfg)
+            }
+            break
+          }
+          case 'vision-ai': {
+            const visCfg = cfg as VisionAINodeConfig
+            if (Array.isArray(data)) {
+              data = await visionAIProcess(data, visCfg)
             }
             break
           }
@@ -721,4 +839,281 @@ function outputData(data: Record<string, unknown>[], cfg: OutputNodeConfig): str
     default:
       return data.map(item => JSON.stringify(item)).join('\n')
   }
+}
+
+/* ── Multimodal pipeline helpers ── */
+
+/**
+ * Strips ephemeral data (signedUrl) from media assets before persisting
+ * a workflow to Supabase. The media metadata (filename, type, size) survives
+ * so users know what to re-upload; the actual file reference is dropped.
+ */
+function stripEphemeralMedia(nodes: Node[]): Node[] {
+  return nodes.map(n => {
+    if (n.data?.nodeType === 'media-input' && n.data?.config?.media) {
+      const media = n.data.config.media as MediaAsset
+      return {
+        ...n,
+        data: {
+          ...n.data,
+          config: {
+            ...n.data.config,
+            media: { ...media, signedUrl: undefined, status: 'needsUpload' as const },
+          },
+        },
+      }
+    }
+    return n
+  })
+}
+
+/**
+ * Converts a Media Input node's uploaded asset into pipeline items.
+ * Each media file becomes a structured object with a `media` field carrying
+ * the MediaAsset and metadata fields for the JSONL output schema.
+ */
+function mediaInputToItems(cfg: MediaInputNodeConfig): Record<string, unknown>[] {
+  if (!cfg.media) return []
+  if (cfg.media.status === 'needsUpload') {
+    throw new Error(`Media file "${cfg.media.filename}" needs to be re-uploaded before running`)
+  }
+  const media = cfg.media
+  return [{
+    id: `media_${media.id.slice(0, 8)}`,
+    media_type: media.type,
+    media_id: media.id,
+    media_filename: media.filename,
+    media_mimeType: media.mimeType,
+    image_url: media.type === 'image' ? media.signedUrl : undefined,
+    audio_ref: media.type === 'audio' ? media.signedUrl : undefined,
+    video_ref: media.type === 'video' ? media.signedUrl : undefined,
+    doc_ref: media.type === 'document' ? media.signedUrl : undefined,
+    media,
+    raw_content: '',
+    language_code: 'unknown',
+    region: 'unknown',
+    format: media.type,
+  }]
+}
+
+/**
+ * OCR processing — extracts text from image media via vision AI.
+ * Sends image_url content part to a vision-capable model.
+ */
+async function ocrProcess(
+  data: Record<string, unknown>[],
+  cfg: OCRNodeConfig,
+): Promise<Record<string, unknown>[]> {
+  const provider = getAIProvider()
+  const prompt = cfg.prompt || 'Extract ALL text visible in this image. Output only the extracted text, preserving line breaks. If there is no text, output empty string.'
+
+  const results: Record<string, unknown>[] = []
+  for (const item of data) {
+    const media = item.media as MediaAsset | undefined
+    if (!media || media.type !== 'image' || !media.signedUrl) {
+      results.push(item)
+      continue
+    }
+    try {
+      const response = await fetch('/api/ai-completion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider,
+          model: cfg.model,
+          temperature: 0.1,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              { type: 'image_url', image_url: { url: media.signedUrl } },
+            ],
+          }],
+        }),
+      })
+      const result = await response.json()
+      const extractedText = response.ok && !result.error
+        ? (result.content || '').trim()
+        : `[OCR failed: ${result.error || response.status}]`
+      results.push({ ...item, extracted_text: extractedText, ocr_processed: true, ocr_model: cfg.model })
+    } catch (e) {
+      results.push({ ...item, extracted_text: `[OCR error: ${e instanceof Error ? e.message : 'unknown'}]`, ocr_processed: false, ocr_model: cfg.model })
+    }
+  }
+  return results
+}
+
+/**
+ * Audio transcription — converts audio media to text via multimodal AI.
+ * Fetches the audio file, converts to base64, sends to /api/transcribe.
+ */
+async function transcribeProcess(
+  data: Record<string, unknown>[],
+  cfg: TranscribeNodeConfig,
+): Promise<Record<string, unknown>[]> {
+  const results: Record<string, unknown>[] = []
+  for (const item of data) {
+    const media = item.media as MediaAsset | undefined
+    if (!media || media.type !== 'audio' || !media.signedUrl) {
+      results.push(item)
+      continue
+    }
+    try {
+      // Fetch audio from signed URL → base64
+      const audioResp = await fetch(media.signedUrl)
+      const audioBlob = await audioResp.blob()
+      const base64 = await blobToBase64(audioBlob)
+      const format = media.mimeType.split('/')[1]?.split(';')[0] || 'wav'
+
+      const response = await fetch('/api/transcribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          audio: base64,
+          format,
+          prompt: cfg.prompt || undefined,
+          model: cfg.model,
+        }),
+      })
+      const result = await response.json()
+      const transcript = response.ok && !result.error
+        ? (result.content || '').trim()
+        : `[Transcription failed: ${result.error || response.status}]`
+      results.push({ ...item, transcript, transcribe_processed: true, transcribe_model: cfg.model })
+    } catch (e) {
+      results.push({ ...item, transcript: `[Transcription error: ${e instanceof Error ? e.message : 'unknown'}]`, transcribe_processed: false, transcribe_model: cfg.model })
+    }
+  }
+  return results
+}
+
+/**
+ * Image captioning — generates a natural language description of image media.
+ */
+async function captionProcess(
+  data: Record<string, unknown>[],
+  cfg: CaptionNodeConfig,
+): Promise<Record<string, unknown>[]> {
+  const provider = getAIProvider()
+  const prompt = cfg.prompt || 'Describe this image in detail. Include: the main subjects, the setting/context, any text visible in the image, the mood or tone, and notable visual elements. Output a single paragraph description.'
+
+  const results: Record<string, unknown>[] = []
+  for (const item of data) {
+    const media = item.media as MediaAsset | undefined
+    if (!media || media.type !== 'image' || !media.signedUrl) {
+      results.push(item)
+      continue
+    }
+    try {
+      const response = await fetch('/api/ai-completion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider,
+          model: cfg.model,
+          temperature: 0.5,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              { type: 'image_url', image_url: { url: media.signedUrl } },
+            ],
+          }],
+        }),
+      })
+      const result = await response.json()
+      const description = response.ok && !result.error
+        ? (result.content || '').trim()
+        : `[Caption failed: ${result.error || response.status}]`
+      results.push({ ...item, image_description: description, caption_processed: true, caption_model: cfg.model })
+    } catch (e) {
+      results.push({ ...item, image_description: `[Caption error: ${e instanceof Error ? e.message : 'unknown'}]`, caption_processed: false, caption_model: cfg.model })
+    }
+  }
+  return results
+}
+
+/**
+ * Vision AI analysis — combines image + text for structured analysis.
+ * Implements the meme/humor vision paradigm from description.md: generates
+ * image_description, image_text, humor_mechanics, cultural_context, etc.
+ */
+async function visionAIProcess(
+  data: Record<string, unknown>[],
+  cfg: VisionAINodeConfig,
+): Promise<Record<string, unknown>[]> {
+  const provider = getAIProvider()
+  const defaultPrompt = `Analyze this image and produce a structured JSON object for LLM training data. Include these fields:
+- "image_description": A detailed description of what is visually shown
+- "image_text": Any text visible in the image (exact transcription)
+- "visual_elements": Key visual components and their arrangement
+- "context": The cultural, social, or situational context needed to understand the image
+- "explanation_for_ai": Why this image works (or doesn't), what makes it notable, and what an AI should learn from it
+
+Output valid JSON only.`
+
+  const results: Record<string, unknown>[] = []
+  for (const item of data) {
+    const media = item.media as MediaAsset | undefined
+    if (!media || !media.signedUrl) {
+      results.push(item)
+      continue
+    }
+
+    // Build content parts — images use image_url, video uses video_url
+    const contentParts: Record<string, unknown>[] = [
+      { type: 'text', text: cfg.prompt || defaultPrompt },
+    ]
+
+    if (media.type === 'image') {
+      contentParts.push({ type: 'image_url', image_url: { url: media.signedUrl } })
+    } else if (media.type === 'video') {
+      contentParts.push({ type: 'video_url', video_url: { url: media.signedUrl } })
+    } else {
+      // For audio/docs, pass the extracted text/transcript if available
+      const textContent = (item.extracted_text || item.transcript || '') as string
+      if (textContent) {
+        contentParts.push({ type: 'text', text: `Associated text content: ${textContent}` })
+      }
+    }
+
+    try {
+      const response = await fetch('/api/ai-completion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider,
+          model: cfg.model,
+          temperature: 0.7,
+          messages: [{
+            role: 'user',
+            content: contentParts,
+          }],
+        }),
+      })
+      const result = await response.json()
+      const analysis = response.ok && !result.error
+        ? (result.content || '').trim()
+        : `[Vision AI failed: ${result.error || response.status}]`
+      results.push({ ...item, vision_analysis: analysis, vision_processed: true, vision_model: cfg.model })
+    } catch (e) {
+      results.push({ ...item, vision_analysis: `[Vision AI error: ${e instanceof Error ? e.message : 'unknown'}]`, vision_processed: false, vision_model: cfg.model })
+    }
+  }
+  return results
+}
+
+/** Converts a Blob to a raw base64 string (no data: prefix). */
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const result = reader.result as string
+      // Strip "data:audio/wav;base64," prefix
+      const base64 = result.includes(',') ? result.split(',')[1] : result
+      resolve(base64)
+    }
+    reader.onerror = () => reject(new Error('Failed to convert blob to base64'))
+    reader.readAsDataURL(blob)
+  })
 }

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from './authStore'
+import { uuid } from '../utils/uuid'
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -175,7 +176,7 @@ export const useCreditStore = create<CreditState>((set, get) => ({
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
     const txn: CreditTransaction = {
-      id: crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      id: uuid(),
       planId,
       creditsAwarded: credits,
       amountPaid,

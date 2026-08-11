@@ -6,6 +6,9 @@
     "api/ai-completion.js": {
       "maxDuration": 30
     },
+    "api/transcribe.js": {
+      "maxDuration": 30
+    },
     "api/verify-payment.js": {
       "maxDuration": 30
     }

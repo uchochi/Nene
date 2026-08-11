@@ -11,7 +11,7 @@ export async function OPTIONS() {
 
 export async function POST(req) {
   try {
-    const { messages, model, provider } = await req.json()
+    const { messages, model, provider, temperature, maxTokens, responseFormat } = await req.json()
 
     if (!messages || !Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: 'Missing messages array' }), {
@@ -35,6 +35,27 @@ export async function POST(req) {
     const apiUrl = AI_API[aiProvider] || AI_API.openai
     const modelId = model || 'nvidia/nemotron-3-nano-30b-a3b:free'
 
+    // Build request body — supports multimodal content arrays:
+    // messages[].content can be a string OR an array of content parts:
+    //   { type: 'text', text: '...' }
+    //   { type: 'image_url', image_url: { url: '... or data:image/...;base64,...' } }
+    //   { type: 'input_audio', input_audio: { data: '<base64>', format: 'wav' } }
+    //   { type: 'video_url', video_url: { url: '... or data:video/...;base64,...' } }
+    const requestBody = {
+      model: modelId,
+      messages,
+      temperature: typeof temperature === 'number' ? temperature : 0.7,
+    }
+
+    if (maxTokens) {
+      requestBody.max_tokens = maxTokens
+    }
+
+    // Only add response_format if explicitly requested (some vision models reject it)
+    if (responseFormat) {
+      requestBody.response_format = responseFormat
+    }
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -45,11 +66,7 @@ export async function POST(req) {
           'X-Title': 'ooguy',
         } : {}),
       },
-      body: JSON.stringify({
-        model: modelId,
-        messages,
-        temperature: 0.7,
-      }),
+      body: JSON.stringify(requestBody),
     })
 
     const result = await response.json()

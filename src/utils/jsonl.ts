@@ -10,6 +10,33 @@ export interface JSONLEntry {
   cultural_context: string
   linguistic_context: string
   explanation_for_ai: string
+
+  /* ── Multimodal fields (optional — present when media was processed) ── */
+  /** Type of media: 'image' | 'audio' | 'video' | 'document' */
+  media_type?: string
+  /** Unique ID of the media asset */
+  media_id?: string
+  /** Original filename of the uploaded media */
+  media_filename?: string
+  /** Signed URL to the image in Supabase Storage (session-scoped, ephemeral) */
+  image_url?: string
+  /** AI-generated description of the image (from Caption or Vision AI node) */
+  image_description?: string
+  /** Text extracted from the image via OCR */
+  image_text?: string
+  /** Signed URL to audio in Supabase Storage (session-scoped, ephemeral) */
+  audio_ref?: string
+  /** Signed URL to video in Supabase Storage */
+  video_ref?: string
+  /** Signed URL to document in Supabase Storage */
+  doc_ref?: string
+  /** Text transcribed from audio */
+  transcript?: string
+  /** Full structured vision AI analysis (JSON string) */
+  vision_analysis?: string
+  /** Raw extracted text (from OCR) */
+  extracted_text?: string
+
   [key: string]: unknown
 }
 
@@ -97,6 +124,7 @@ export function getStatistics(entries: JSONLEntry[]): Record<string, unknown> {
   const byLanguage: Record<string, number> = {}
   const byRegion: Record<string, number> = {}
   const byMechanic: Record<string, number> = {}
+  const byMediaType: Record<string, number> = {}
 
   entries.forEach(e => {
     byLanguage[e.language_code] = (byLanguage[e.language_code] || 0) + 1
@@ -104,14 +132,26 @@ export function getStatistics(entries: JSONLEntry[]): Record<string, unknown> {
     e.humor_mechanics?.forEach(m => {
       byMechanic[m] = (byMechanic[m] || 0) + 1
     })
+    if (e.media_type) {
+      byMediaType[e.media_type] = (byMediaType[e.media_type] || 0) + 1
+    }
   })
+
+  const totalMedia = entries.filter(e => e.media_type).length
 
   return {
     totalEntries: entries.length,
     byLanguage,
     byRegion,
     byMechanic,
+    byMediaType,
     uniqueLanguages: Object.keys(byLanguage).length,
     uniqueRegions: Object.keys(byRegion).length,
+    multimodalEntries: totalMedia,
+    textOnlyEntries: entries.length - totalMedia,
+    hasImages: (byMediaType.image || 0) > 0,
+    hasAudio: (byMediaType.audio || 0) > 0,
+    hasVideo: (byMediaType.video || 0) > 0,
+    hasDocuments: (byMediaType.document || 0) > 0,
   }
 }
