@@ -11,8 +11,14 @@ export function OverviewPage() {
   const user = useAuthStore(s => s.user)
   const savedWorkflows = useWorkflowStore(s => s.savedWorkflows)
   const history = useWorkflowStore(s => s.history)
+  const newWorkflow = useWorkflowStore(s => s.newWorkflow)
   const balance = useCreditStore(s => s.balance)
   const totalPurchased = useCreditStore(s => s.totalPurchased)
+
+  const handleNew = () => {
+    newWorkflow()
+    navigate('/projects/new')
+  }
 
   const firstName = user?.email?.split('@')[0] || 'there'
   const totalRows = history.reduce((sum, h) => sum + h.rowCount, 0)
@@ -70,7 +76,7 @@ export function OverviewPage() {
       {/* quick action */}
       <div className="mb-8">
         <button
-          onClick={() => navigate('/projects')}
+          onClick={handleNew}
           className="btn-primary inline-flex items-center gap-2 text-sm"
         >
           <Plus size={16} />
@@ -102,7 +108,7 @@ export function OverviewPage() {
               Create your first workflow to start formatting datasets.
             </p>
             <button
-              onClick={() => navigate('/projects')}
+              onClick={handleNew}
               className="btn-primary text-xs inline-flex items-center gap-1.5"
             >
               <Plus size={14} />
