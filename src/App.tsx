@@ -90,7 +90,6 @@ export default function App() {
       </Route>
 
       {/* project editor — node palette + canvas + toolbar only */}
-      <Route path="/projects/new" element={<ProjectEditorPage />} />
       <Route path="/projects/:id" element={<ProjectEditorPage />} />
 
       {/* fallback */}

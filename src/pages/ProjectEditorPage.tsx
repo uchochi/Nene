@@ -31,7 +31,7 @@ export function ProjectEditorPage() {
   }, [])
 
   /* ── resolve the route param to a workflow ── */
-  const isNew = id === 'new'
+  const isNew = !id || id === 'new'
   const exists = isNew || savedWorkflows.some(w => w.id === id)
 
   /* load the workflow into the editor if a different one is requested */
