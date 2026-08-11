@@ -609,14 +609,16 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
           case 'format': {
             const fmtCfg = cfg as FormatNodeConfig
             if (typeof data === 'string') {
-              data = await formatData(data, fmtCfg)
+              data = formatData(data, fmtCfg)
+            } else if (Array.isArray(data)) {
+              data = ensureFormatted(data)
             }
             break
           }
           case 'tag': {
             const tagCfg = cfg as TagNodeConfig
             if (Array.isArray(data)) {
-              data = tagData(data, tagCfg)
+              data = await tagData(data, tagCfg)
             }
             break
           }
@@ -630,7 +632,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
           case 'translate': {
             const trCfg = cfg as TranslateNodeConfig
             if (Array.isArray(data)) {
-              data = translateData(data, trCfg)
+              data = await translateData(data, trCfg)
             }
             break
           }
@@ -711,48 +713,193 @@ function formatData(data: string, cfg: FormatNodeConfig): Record<string, unknown
   }))
 }
 
-function tagData(data: Record<string, unknown>[], cfg: TagNodeConfig): Record<string, unknown>[] {
+/** Ensures array items (e.g. from media input) have required metadata fields. */
+function ensureFormatted(data: Record<string, unknown>[]): Record<string, unknown>[] {
+  return data.map((item, i) => ({
+    id: item.id || `item_${String(i + 1).padStart(3, '0')}`,
+    ...item,
+    language_code: item.language_code || 'en',
+    region: item.region || 'unknown',
+    format: item.format || 'structured',
+  }))
+}
+
+async function tagData(data: Record<string, unknown>[], cfg: TagNodeConfig): Promise<Record<string, unknown>[]> {
   const categories = cfg.categories.split(',').map(c => c.trim()).filter(Boolean)
+  const catList = categories.length > 0 ? categories : ['general']
+
+  if (cfg.autoTag) {
+    const results: Record<string, unknown>[] = []
+    for (const item of data) {
+      try {
+        const aiTags = await generateTagsWithAI(item)
+        results.push({ ...item, tags: aiTags, categories: catList, categorized: true })
+      } catch {
+        results.push({ ...item, tags: extractTags(item), categories: catList, categorized: true })
+      }
+    }
+    return results
+  }
+
   return data.map(item => ({
     ...item,
     tags: extractTags(item),
-    categories: categories.length > 0 ? categories : ['general'],
+    categories: catList,
     categorized: true,
   }))
 }
 
+/** AI-powered tag generation. */
+async function generateTagsWithAI(item: Record<string, unknown>): Promise<string[]> {
+  const content = extractTextContent(item)
+  if (!content) return ['general']
+
+  const response = await fetch('/api/ai-completion', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messages: [
+        { role: 'system', content: 'You are a content tagging assistant. Analyze the given content and return ONLY a JSON array of 3-7 relevant tags as lowercase strings. Example: ["humor","wordplay","culture"]' },
+        { role: 'user', content: `Tag this content:\n\n${content.slice(0, 2000)}` },
+      ],
+      model: getDefaultModel(),
+      provider: getAIProvider(),
+      temperature: 0.3,
+    }),
+  })
+
+  const result = await response.json()
+  if (!response.ok || result.error) {
+    throw new Error(result.error || 'Tag generation failed')
+  }
+
+  return parseStringArray(result.content)
+}
+
+/** Improved keyword-based tag extraction (no AI call). */
 function extractTags(item: Record<string, unknown>): string[] {
-  const text = Object.values(item).join(' ').toLowerCase()
-  const common = ['humor', 'education', 'technology', 'culture', 'language', 'pun', 'wordplay']
-  return common.filter(t => text.includes(t))
+  const text = extractTextContent(item).toLowerCase()
+  if (!text) return ['general']
+
+  const tagDictionary: Record<string, string[]> = {
+    humor: ['humor', 'humour', 'joke', 'funny', 'comedy', 'pun', 'punchline', 'laugh', 'hilarious', 'meme', 'gag'],
+    education: ['education', 'learn', 'teach', 'tutorial', 'lesson', 'course', 'study', 'knowledge', 'guide', 'explain'],
+    technology: ['technology', 'tech', 'software', 'code', 'programming', 'ai', 'machine learning', 'data', 'computer', 'digital', 'app', 'algorithm'],
+    culture: ['culture', 'cultural', 'tradition', 'custom', 'society', 'social', 'community', 'heritage', 'folklore'],
+    language: ['language', 'linguistic', 'translation', 'bilingual', 'grammar', 'vocabulary', 'slang', 'dialect', 'idiom'],
+    wordplay: ['pun', 'wordplay', 'double meaning', 'double entendre', 'homophone', 'homonym', 'ambiguity', 'phonetic'],
+    irony: ['irony', 'ironic', 'sarcasm', 'sarcastic', 'paradox', 'satire'],
+    emotion: ['emotion', 'emotional', 'feeling', 'mood', 'sentiment', 'happy', 'sad', 'angry', 'fear', 'love'],
+    business: ['business', 'marketing', 'sales', 'finance', 'economy', 'money', 'trade', 'corporate'],
+    science: ['science', 'scientific', 'biology', 'physics', 'chemistry', 'research', 'experiment', 'hypothesis'],
+    entertainment: ['entertainment', 'movie', 'film', 'music', 'game', 'sport', 'celebrity', 'show'],
+    food: ['food', 'cooking', 'recipe', 'cuisine', 'restaurant', 'dish', 'meal'],
+    travel: ['travel', 'tourism', 'destination', 'vacation', 'adventure', 'journey'],
+  }
+
+  const tags: string[] = []
+  for (const [tag, keywords] of Object.entries(tagDictionary)) {
+    if (keywords.some(kw => text.includes(kw))) {
+      tags.push(tag)
+    }
+  }
+  return tags.length > 0 ? tags : ['general']
 }
 
+/** Group: adds a `group` field to each item — does NOT restructure. */
 function groupData(data: Record<string, unknown>[], cfg: GroupNodeConfig): Record<string, unknown>[] {
-  const key = cfg.groupBy
-  const groups = new Map<string, Record<string, unknown>[]>()
-  data.forEach(item => {
-    const val = String(item[key] || 'unknown')
-    if (!groups.has(val)) groups.set(val, [])
-    groups.get(val)!.push(item)
-  })
-  const result: Record<string, unknown>[] = []
-  groups.forEach((items, groupName) => {
-    result.push({ group: groupName, count: items.length, items })
-  })
-  return result
+  return data.map(item => ({
+    ...item,
+    group: String(item[cfg.groupBy] || (item.tags as string[])?.[0] || 'unknown'),
+    grouped: true,
+  }))
 }
 
-function translateData(data: Record<string, unknown>[], cfg: TranslateNodeConfig): Record<string, unknown>[] {
+/** Translate: actually translates text fields into each target language via AI. */
+async function translateData(data: Record<string, unknown>[], cfg: TranslateNodeConfig): Promise<Record<string, unknown>[]> {
   const langs = cfg.targetLanguages.split(',').map(l => l.trim()).filter(Boolean)
   if (langs.length === 0) return data
-  return data.flatMap(item => {
-    return langs.map(lang => ({
-      ...item,
-      language_code: lang,
-      translated: true,
-      original_language: item.language_code || 'unknown',
-    }))
+
+  const results: Record<string, unknown>[] = []
+  for (const item of data) {
+    for (const lang of langs) {
+      try {
+        const translated = await translateItem(item, lang, cfg.preserveMechanics)
+        results.push(translated)
+      } catch (e) {
+        results.push({
+          ...item,
+          language_code: lang,
+          translated: false,
+          original_language: item.language_code || 'unknown',
+          translation_error: e instanceof Error ? e.message : 'Translation failed',
+        })
+      }
+    }
+  }
+  return results
+}
+
+/** Translates all text fields of an item into a target language using AI. */
+async function translateItem(
+  item: Record<string, unknown>,
+  targetLang: string,
+  preserveMechanics: boolean,
+): Promise<Record<string, unknown>> {
+  const originalLang = String(item.language_code || 'en')
+
+  const textFields = ['raw_content', 'setup', 'punchline', 'literal_english_translation',
+                      'cultural_context', 'linguistic_context', 'explanation_for_ai',
+                      'extracted_text', 'image_description', 'transcript']
+  const textsToTranslate: Record<string, string> = {}
+  for (const field of textFields) {
+    const val = item[field]
+    if (typeof val === 'string' && val.trim()) {
+      textsToTranslate[field] = val
+    }
+  }
+
+  if (Object.keys(textsToTranslate).length === 0) {
+    return { ...item, language_code: targetLang, translated: true, original_language: originalLang }
+  }
+
+  const preserveNote = preserveMechanics
+    ? ' IMPORTANT: If the content uses humor mechanics (puns, wordplay, idioms), ADAPT them to the target language so they work natively — do not translate literally. The result should feel natural and funny to a native speaker.'
+    : ''
+
+  const response = await fetch('/api/ai-completion', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messages: [
+        { role: 'system', content: `You are a professional translator. Translate the following JSON content into ${targetLang}. Return ONLY a JSON object with the same keys, values translated.${preserveNote}` },
+        { role: 'user', content: JSON.stringify(textsToTranslate, null, 2) },
+      ],
+      model: getDefaultModel(),
+      provider: getAIProvider(),
+      temperature: 0.3,
+    }),
   })
+
+  const result = await response.json()
+  if (!response.ok || result.error) {
+    throw new Error(result.error || 'Translation API error')
+  }
+
+  let translatedTexts: Record<string, unknown> = {}
+  try {
+    translatedTexts = JSON.parse(result.content)
+  } catch {
+    translatedTexts = { raw_content: result.content }
+  }
+
+  return {
+    ...item,
+    ...translatedTexts,
+    language_code: targetLang,
+    translated: true,
+    original_language: originalLang,
+  }
 }
 
 async function aiTransform(data: Record<string, unknown>[], cfg: AITransformNodeConfig): Promise<Record<string, unknown>[]> {
@@ -767,12 +914,13 @@ async function aiTransform(data: Record<string, unknown>[], cfg: AITransformNode
         return { ...item, explanation_for_ai: explanation, ai_processed: true }
       })
     )
-    for (const r of batchResults) {
+    for (let j = 0; j < batchResults.length; j++) {
+      const r = batchResults[j]
       if (r.status === 'fulfilled') {
         results.push(r.value)
       } else {
         const msg = r.reason instanceof Error ? r.reason.message : 'AI error'
-        results.push({ ai_processed: false, error: msg })
+        results.push({ ...batch[j], ai_processed: false, error: msg })
       }
     }
   }
@@ -790,9 +938,12 @@ async function aiTransformString(data: string, cfg: AITransformNodeConfig): Prom
   }
 }
 
+/** Sends an item's content to AI — strips internal fields first. */
 async function callAI(item: Record<string, unknown>, cfg: AITransformNodeConfig): Promise<string> {
-  const text = JSON.stringify(item, null, 2).slice(0, 3000)
-  const userPrompt = cfg.prompt || `Analyze this content and explain the underlying mechanics, cultural context, and linguistic techniques used. Format the output as a JSON object with fields: "setup", "punchline", "humor_mechanics", "cultural_context", "linguistic_context", "explanation_for_ai".\n\nContent: ${text}`
+  const { media, ai_processed, categorized, grouped, translated, translation_error, ...content } = item
+  void media; void ai_processed; void categorized; void grouped; void translated; void translation_error
+  const text = JSON.stringify(content, null, 2).slice(0, 3000)
+  const userPrompt = cfg.prompt || `Analyze the following content and produce a structured JSON object. Choose field names and analysis depth appropriate to whatever the content actually is — do not assume a specific topic or format. Include at minimum: a "summary" field, a "key_topics" array, a "sentiment" field, and any other fields that are relevant to this specific content.\n\nContent: ${text}`
   const provider = getAIProvider()
   const model = getDefaultModel()
 
@@ -801,7 +952,7 @@ async function callAI(item: Record<string, unknown>, cfg: AITransformNodeConfig)
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       messages: [
-        { role: 'system', content: 'You are a data formatting assistant. Analyze content and produce structured JSON output.' },
+        { role: 'system', content: 'You are an intelligent data analysis assistant. Analyze content and produce structured JSON output. Adapt your analysis to the actual content type — do not assume humor, education, or any specific category. Choose output fields that are relevant to what the content actually contains.' },
         { role: 'user', content: userPrompt },
       ],
       model,
@@ -822,14 +973,47 @@ function outputData(data: Record<string, unknown>[], cfg: OutputNodeConfig): str
       return JSON.stringify(data, null, 2)
     case 'csv': {
       if (data.length === 0) return ''
-      const headers = Object.keys(data[0])
-      const rows = data.map(item => headers.map(h => String(item[h] ?? '')).join(','))
+      const keySet = new Set<string>()
+      data.forEach(item => Object.keys(item).forEach(k => keySet.add(k)))
+      const headers = Array.from(keySet)
+      const escapeCSV = (val: unknown): string => {
+        const str = typeof val === 'object' && val !== null
+          ? JSON.stringify(val)
+          : String(val ?? '')
+        return str.includes(',') || str.includes('"') || str.includes('\n')
+          ? `"${str.replace(/"/g, '""')}"`
+          : str
+      }
+      const rows = data.map(item => headers.map(h => escapeCSV(item[h])).join(','))
       return [headers.join(','), ...rows].join('\n')
     }
     case 'jsonl':
     default:
       return data.map(item => JSON.stringify(item)).join('\n')
   }
+}
+
+/* ── Shared helpers ── */
+
+/** Extracts all text content from an item for AI processing or tag matching. */
+function extractTextContent(item: Record<string, unknown>): string {
+  const skipKeys = new Set(['media', 'signedUrl', 'id', 'timestamp', 'source'])
+  return Object.entries(item)
+    .filter(([key, val]) => !skipKeys.has(key) && typeof val === 'string')
+    .map(([, val]) => val as string)
+    .join(' ')
+}
+
+/** Parses a JSON string array from an AI response, with fallback. */
+function parseStringArray(content: string): string[] {
+  try {
+    const parsed = JSON.parse(content)
+    if (Array.isArray(parsed)) return parsed.map(String)
+  } catch {
+    const matches = content.match(/"([^"]+)"/g)
+    if (matches) return matches.map(m => m.replace(/"/g, ''))
+  }
+  return ['general']
 }
 
 /* ── Multimodal pipeline helpers ── */
