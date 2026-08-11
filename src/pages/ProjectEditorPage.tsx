@@ -18,6 +18,7 @@ export function ProjectEditorPage() {
   const activeWorkflowId = useWorkflowStore(s => s.activeWorkflowId)
   const selectedNodeId = useWorkflowStore(s => s.selectedNodeId)
   const datasetResult = useWorkflowStore(s => s.datasetResult)
+  const newWorkflow = useWorkflowStore(s => s.newWorkflow)
 
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768)
   const [showTopUp, setShowTopUp] = useState(false)
@@ -40,6 +41,13 @@ export function ProjectEditorPage() {
       loadWorkflow(id)
     }
   }, [id, isNew, activeWorkflowId, loadWorkflow])
+
+  /* when creating a new project, reset the canvas to blank */
+  useEffect(() => {
+    if (isNew) {
+      try { newWorkflow() } catch (e) { console.error('newWorkflow error:', e) }
+    }
+  }, [isNew, newWorkflow])
 
   /* invalid project id → bounce back to the projects list */
   if (!exists) {

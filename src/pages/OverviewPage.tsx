@@ -16,8 +16,8 @@ export function OverviewPage() {
   const totalPurchased = useCreditStore(s => s.totalPurchased)
 
   const handleNew = () => {
-    newWorkflow()
     navigate('/projects/new')
+    try { newWorkflow() } catch (e) { console.error('newWorkflow error:', e) }
   }
 
   const firstName = user?.email?.split('@')[0] || 'there'

@@ -26,8 +26,8 @@ export function ProjectsPage() {
   }
 
   const handleNew = () => {
-    newWorkflow()
     navigate('/projects/new')
+    try { newWorkflow() } catch (e) { console.error('newWorkflow error:', e) }
   }
 
   const handleImport = () => importInputRef.current?.click()
