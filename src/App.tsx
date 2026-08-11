@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { OnboardingScreen } from './components/onboarding/OnboardingScreen'
 import { AuthScreen } from './components/auth/AuthScreen'
 import { GlobalLayout } from './components/layout/GlobalLayout'
@@ -77,6 +78,7 @@ export default function App() {
   }
 
   return (
+    <ErrorBoundary>
     <Routes>
       {/* account-level pages share the global Vercel-style sidebar */}
       <Route element={<GlobalLayout />}>
@@ -94,5 +96,6 @@ export default function App() {
       {/* fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </ErrorBoundary>
   )
 }
