@@ -11,11 +11,6 @@ const nodeIcons: Record<string, string> = {
   translate: '🌐',
   output: '📤',
   ai: '🤖',
-  'media-input': '🖼️',
-  ocr: '🔍',
-  transcribe: '🎙️',
-  caption: '💬',
-  'vision-ai': '👁️',
 }
 
 function CustomNode({ data, selected }: NodeProps) {
@@ -24,8 +19,8 @@ function CustomNode({ data, selected }: NodeProps) {
   const icon = nodeIcons[nodeType] || '⬜'
   const label = data.config?.label || nodeType
 
-  // Media badge: shows upload status on Media Input nodes
-  const hasMedia = nodeType === 'media-input'
+  // Media badge: shows upload status on Input nodes that have media attached
+  const hasMedia = nodeType === 'input'
   const mediaStatus = hasMedia ? data.config?.media?.status : null
   const mediaFilename = hasMedia ? data.config?.media?.filename : null
 

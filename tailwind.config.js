@@ -33,11 +33,6 @@ export default {
           translate: '#00BCD4',
           output: '#F44336',
           ai: '#E91E63',
-          'media-input': '#8B5CF6',
-          ocr: '#F59E0B',
-          transcribe: '#14B8A6',
-          caption: '#D946EF',
-          'vision-ai': '#6366F1',
         }
       },
       fontFamily: {

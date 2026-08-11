@@ -8,12 +8,10 @@ import {
 import { v4 as uuidv4 } from 'uuid'
 import { supabase } from '../lib/supabase'
 import { encodeDownloadData } from '../utils/downloadLink'
-import type { MediaAsset, MediaType } from '../types/media'
+import type { MediaAsset } from '../types/media'
 import { deleteSessionMedia } from '../utils/mediaUpload'
 
-export type NodeType =
-  | 'input' | 'format' | 'tag' | 'group' | 'translate' | 'output' | 'ai'
-  | 'media-input' | 'ocr' | 'transcribe' | 'caption' | 'vision-ai'
+export type NodeType = 'input' | 'format' | 'tag' | 'group' | 'translate' | 'output' | 'ai'
 
 export interface NodeConfig {
   label: string
@@ -24,6 +22,26 @@ export interface InputNodeConfig extends NodeConfig {
   contentType: 'text' | 'json' | 'csv'
   content: string
   label: string
+
+  /* ── Multimodal fields (merged from the 5 former nodes) ── */
+  /** Uploaded media asset, or null for text-only input */
+  media: MediaAsset | null
+  /** OCR: extract text from images */
+  enableOCR: boolean
+  ocrPrompt: string
+  ocrModel: string
+  /** Transcribe: audio → text */
+  enableTranscribe: boolean
+  transcribePrompt: string
+  transcribeModel: string
+  /** Caption: AI image description */
+  enableCaption: boolean
+  captionPrompt: string
+  captionModel: string
+  /** Vision AI: structured multimodal analysis */
+  enableVisionAI: boolean
+  visionAIPrompt: string
+  visionAIModel: string
 }
 export interface FormatNodeConfig extends NodeConfig {
   formatType: 'jsonl' | 'json'
@@ -50,36 +68,6 @@ export interface OutputNodeConfig extends NodeConfig {
 }
 export interface AITransformNodeConfig extends NodeConfig {
   prompt: string
-  label: string
-}
-
-/* ── Multimodal node configs ── */
-
-export interface MediaInputNodeConfig extends NodeConfig {
-  /** The uploaded media asset, or null if nothing uploaded yet */
-  media: MediaAsset | null
-  /** Which media types this input accepts */
-  acceptedTypes: MediaType[]
-  label: string
-}
-export interface OCRNodeConfig extends NodeConfig {
-  prompt: string
-  model: string
-  label: string
-}
-export interface TranscribeNodeConfig extends NodeConfig {
-  prompt: string
-  model: string
-  label: string
-}
-export interface CaptionNodeConfig extends NodeConfig {
-  prompt: string
-  model: string
-  label: string
-}
-export interface VisionAINodeConfig extends NodeConfig {
-  prompt: string
-  model: string
   label: string
 }
 
@@ -161,18 +149,30 @@ function getDefaultModelSafe(envVar: string, fallback: string): string {
 }
 
 const defaultNodeConfig: Record<NodeType, NodeConfig> = {
-  input: { label: 'Input', contentType: 'text', content: '' },
+  input: {
+    label: 'Input',
+    contentType: 'text',
+    content: '',
+    media: null,
+    enableOCR: false,
+    ocrPrompt: '',
+    ocrModel: getDefaultModelSafe('VITE_OCR_MODEL', 'nvidia/nemotron-nano-12b-v2-vl:free'),
+    enableTranscribe: false,
+    transcribePrompt: '',
+    transcribeModel: getDefaultModelSafe('VITE_TRANSCRIBE_MODEL', 'google/gemini-2.5-flash-preview'),
+    enableCaption: false,
+    captionPrompt: '',
+    captionModel: getDefaultModelSafe('VITE_CAPTION_MODEL', 'nvidia/nemotron-nano-12b-v2-vl:free'),
+    enableVisionAI: false,
+    visionAIPrompt: '',
+    visionAIModel: getDefaultModelSafe('VITE_VISION_MODEL', 'nvidia/nemotron-nano-12b-v2-vl:free'),
+  },
   format: { label: 'Format', formatType: 'jsonl', includeMetadata: true },
   tag: { label: 'Tag & Categorize', categories: '', autoTag: true },
   group: { label: 'Group', groupBy: 'language' },
   translate: { label: 'Translate', targetLanguages: '', preserveMechanics: true },
   output: { label: 'Output', format: 'jsonl' },
   ai: { label: 'AI Transform', prompt: '' },
-  'media-input': { label: 'Media Input', media: null, acceptedTypes: ['image', 'audio', 'video', 'document'] },
-  ocr: { label: 'OCR', prompt: '', model: getDefaultModelSafe('VITE_OCR_MODEL', 'nvidia/nemotron-nano-12b-v2-vl:free') },
-  transcribe: { label: 'Transcribe', prompt: '', model: getDefaultModelSafe('VITE_TRANSCRIBE_MODEL', 'google/gemini-2.5-flash-preview') },
-  caption: { label: 'Caption', prompt: '', model: getDefaultModelSafe('VITE_CAPTION_MODEL', 'nvidia/nemotron-nano-12b-v2-vl:free') },
-  'vision-ai': { label: 'Vision AI', prompt: '', model: getDefaultModelSafe('VITE_VISION_MODEL', 'nvidia/nemotron-nano-12b-v2-vl:free') },
 }
 
 const nodeColors: Record<NodeType, string> = {
@@ -183,11 +183,6 @@ const nodeColors: Record<NodeType, string> = {
   translate: '#00BCD4',
   output: '#F44336',
   ai: '#E91E63',
-  'media-input': '#8B5CF6',
-  ocr: '#F59E0B',
-  transcribe: '#14B8A6',
-  caption: '#D946EF',
-  'vision-ai': '#6366F1',
 }
 
 export function getNodeColor(type: NodeType): string {
@@ -579,12 +574,36 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         switch (node.data.nodeType) {
           case 'input': {
             const inputCfg = cfg as InputNodeConfig
-            data = inputCfg.content
-            break
-          }
-          case 'media-input': {
-            const mediaCfg = cfg as MediaInputNodeConfig
-            data = mediaInputToItems(mediaCfg)
+
+            // If media is attached and uploaded, produce a media pipeline item
+            // and run any enabled processing (OCR, transcribe, caption, vision AI)
+            if (inputCfg.media && inputCfg.media.status === 'uploaded') {
+              let mediaItems = mediaInputToItems(inputCfg.media)
+
+              if (inputCfg.enableOCR && inputCfg.media.type === 'image') {
+                mediaItems = await ocrProcess(mediaItems, inputCfg.ocrPrompt, inputCfg.ocrModel)
+              }
+              if (inputCfg.enableTranscribe && inputCfg.media.type === 'audio') {
+                mediaItems = await transcribeProcess(mediaItems, inputCfg.transcribePrompt, inputCfg.transcribeModel)
+              }
+              if (inputCfg.enableCaption && inputCfg.media.type === 'image') {
+                mediaItems = await captionProcess(mediaItems, inputCfg.captionPrompt, inputCfg.captionModel)
+              }
+              if (inputCfg.enableVisionAI) {
+                mediaItems = await visionAIProcess(mediaItems, inputCfg.visionAIPrompt, inputCfg.visionAIModel)
+              }
+
+              // If there's also text content, merge it into each media item
+              if (inputCfg.content && mediaItems.length > 0) {
+                mediaItems = mediaItems.map(item => ({ ...item, raw_content: inputCfg.content }))
+              }
+              data = mediaItems
+            } else if (inputCfg.media && inputCfg.media.status === 'needsUpload') {
+              throw new Error(`Media file "${inputCfg.media.filename}" needs to be re-uploaded before running`)
+            } else {
+              // Text-only path (original behavior)
+              data = inputCfg.content
+            }
             break
           }
           case 'format': {
@@ -621,34 +640,6 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
               data = await aiTransform(data, aiCfg)
             } else if (typeof data === 'string') {
               data = await aiTransformString(data, aiCfg)
-            }
-            break
-          }
-          case 'ocr': {
-            const ocrCfg = cfg as OCRNodeConfig
-            if (Array.isArray(data)) {
-              data = await ocrProcess(data, ocrCfg)
-            }
-            break
-          }
-          case 'transcribe': {
-            const trCfg = cfg as TranscribeNodeConfig
-            if (Array.isArray(data)) {
-              data = await transcribeProcess(data, trCfg)
-            }
-            break
-          }
-          case 'caption': {
-            const capCfg = cfg as CaptionNodeConfig
-            if (Array.isArray(data)) {
-              data = await captionProcess(data, capCfg)
-            }
-            break
-          }
-          case 'vision-ai': {
-            const visCfg = cfg as VisionAINodeConfig
-            if (Array.isArray(data)) {
-              data = await visionAIProcess(data, visCfg)
             }
             break
           }
@@ -850,7 +841,7 @@ function outputData(data: Record<string, unknown>[], cfg: OutputNodeConfig): str
  */
 function stripEphemeralMedia(nodes: Node[]): Node[] {
   return nodes.map(n => {
-    if (n.data?.nodeType === 'media-input' && n.data?.config?.media) {
+    if (n.data?.nodeType === 'input' && n.data?.config?.media) {
       const media = n.data.config.media as MediaAsset
       return {
         ...n,
@@ -868,16 +859,12 @@ function stripEphemeralMedia(nodes: Node[]): Node[] {
 }
 
 /**
- * Converts a Media Input node's uploaded asset into pipeline items.
+ * Converts an uploaded media asset into pipeline items.
  * Each media file becomes a structured object with a `media` field carrying
  * the MediaAsset and metadata fields for the JSONL output schema.
  */
-function mediaInputToItems(cfg: MediaInputNodeConfig): Record<string, unknown>[] {
-  if (!cfg.media) return []
-  if (cfg.media.status === 'needsUpload') {
-    throw new Error(`Media file "${cfg.media.filename}" needs to be re-uploaded before running`)
-  }
-  const media = cfg.media
+function mediaInputToItems(media: MediaAsset): Record<string, unknown>[] {
+  if (!media.signedUrl) return []
   return [{
     id: `media_${media.id.slice(0, 8)}`,
     media_type: media.type,
@@ -898,14 +885,14 @@ function mediaInputToItems(cfg: MediaInputNodeConfig): Record<string, unknown>[]
 
 /**
  * OCR processing — extracts text from image media via vision AI.
- * Sends image_url content part to a vision-capable model.
  */
 async function ocrProcess(
   data: Record<string, unknown>[],
-  cfg: OCRNodeConfig,
+  customPrompt: string,
+  model: string,
 ): Promise<Record<string, unknown>[]> {
   const provider = getAIProvider()
-  const prompt = cfg.prompt || 'Extract ALL text visible in this image. Output only the extracted text, preserving line breaks. If there is no text, output empty string.'
+  const prompt = customPrompt || 'Extract ALL text visible in this image. Output only the extracted text, preserving line breaks. If there is no text, output empty string.'
 
   const results: Record<string, unknown>[] = []
   for (const item of data) {
@@ -920,7 +907,7 @@ async function ocrProcess(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           provider,
-          model: cfg.model,
+          model,
           temperature: 0.1,
           messages: [{
             role: 'user',
@@ -935,9 +922,9 @@ async function ocrProcess(
       const extractedText = response.ok && !result.error
         ? (result.content || '').trim()
         : `[OCR failed: ${result.error || response.status}]`
-      results.push({ ...item, extracted_text: extractedText, ocr_processed: true, ocr_model: cfg.model })
+      results.push({ ...item, extracted_text: extractedText, ocr_processed: true, ocr_model: model })
     } catch (e) {
-      results.push({ ...item, extracted_text: `[OCR error: ${e instanceof Error ? e.message : 'unknown'}]`, ocr_processed: false, ocr_model: cfg.model })
+      results.push({ ...item, extracted_text: `[OCR error: ${e instanceof Error ? e.message : 'unknown'}]`, ocr_processed: false, ocr_model: model })
     }
   }
   return results
@@ -949,7 +936,8 @@ async function ocrProcess(
  */
 async function transcribeProcess(
   data: Record<string, unknown>[],
-  cfg: TranscribeNodeConfig,
+  customPrompt: string,
+  model: string,
 ): Promise<Record<string, unknown>[]> {
   const results: Record<string, unknown>[] = []
   for (const item of data) {
@@ -971,17 +959,17 @@ async function transcribeProcess(
         body: JSON.stringify({
           audio: base64,
           format,
-          prompt: cfg.prompt || undefined,
-          model: cfg.model,
+          prompt: customPrompt || undefined,
+          model,
         }),
       })
       const result = await response.json()
       const transcript = response.ok && !result.error
         ? (result.content || '').trim()
         : `[Transcription failed: ${result.error || response.status}]`
-      results.push({ ...item, transcript, transcribe_processed: true, transcribe_model: cfg.model })
+      results.push({ ...item, transcript, transcribe_processed: true, transcribe_model: model })
     } catch (e) {
-      results.push({ ...item, transcript: `[Transcription error: ${e instanceof Error ? e.message : 'unknown'}]`, transcribe_processed: false, transcribe_model: cfg.model })
+      results.push({ ...item, transcript: `[Transcription error: ${e instanceof Error ? e.message : 'unknown'}]`, transcribe_processed: false, transcribe_model: model })
     }
   }
   return results
@@ -992,10 +980,11 @@ async function transcribeProcess(
  */
 async function captionProcess(
   data: Record<string, unknown>[],
-  cfg: CaptionNodeConfig,
+  customPrompt: string,
+  model: string,
 ): Promise<Record<string, unknown>[]> {
   const provider = getAIProvider()
-  const prompt = cfg.prompt || 'Describe this image in detail. Include: the main subjects, the setting/context, any text visible in the image, the mood or tone, and notable visual elements. Output a single paragraph description.'
+  const prompt = customPrompt || 'Describe this image in detail. Include: the main subjects, the setting/context, any text visible in the image, the mood or tone, and notable visual elements. Output a single paragraph description.'
 
   const results: Record<string, unknown>[] = []
   for (const item of data) {
@@ -1010,7 +999,7 @@ async function captionProcess(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           provider,
-          model: cfg.model,
+          model,
           temperature: 0.5,
           messages: [{
             role: 'user',
@@ -1025,9 +1014,9 @@ async function captionProcess(
       const description = response.ok && !result.error
         ? (result.content || '').trim()
         : `[Caption failed: ${result.error || response.status}]`
-      results.push({ ...item, image_description: description, caption_processed: true, caption_model: cfg.model })
+      results.push({ ...item, image_description: description, caption_processed: true, caption_model: model })
     } catch (e) {
-      results.push({ ...item, image_description: `[Caption error: ${e instanceof Error ? e.message : 'unknown'}]`, caption_processed: false, caption_model: cfg.model })
+      results.push({ ...item, image_description: `[Caption error: ${e instanceof Error ? e.message : 'unknown'}]`, caption_processed: false, caption_model: model })
     }
   }
   return results
@@ -1040,7 +1029,8 @@ async function captionProcess(
  */
 async function visionAIProcess(
   data: Record<string, unknown>[],
-  cfg: VisionAINodeConfig,
+  customPrompt: string,
+  model: string,
 ): Promise<Record<string, unknown>[]> {
   const provider = getAIProvider()
   const defaultPrompt = `Analyze this image and produce a structured JSON object for LLM training data. Include these fields:
@@ -1062,7 +1052,7 @@ Output valid JSON only.`
 
     // Build content parts — images use image_url, video uses video_url
     const contentParts: Record<string, unknown>[] = [
-      { type: 'text', text: cfg.prompt || defaultPrompt },
+      { type: 'text', text: customPrompt || defaultPrompt },
     ]
 
     if (media.type === 'image') {
@@ -1083,7 +1073,7 @@ Output valid JSON only.`
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           provider,
-          model: cfg.model,
+          model,
           temperature: 0.7,
           messages: [{
             role: 'user',
@@ -1095,9 +1085,9 @@ Output valid JSON only.`
       const analysis = response.ok && !result.error
         ? (result.content || '').trim()
         : `[Vision AI failed: ${result.error || response.status}]`
-      results.push({ ...item, vision_analysis: analysis, vision_processed: true, vision_model: cfg.model })
+      results.push({ ...item, vision_analysis: analysis, vision_processed: true, vision_model: model })
     } catch (e) {
-      results.push({ ...item, vision_analysis: `[Vision AI error: ${e instanceof Error ? e.message : 'unknown'}]`, vision_processed: false, vision_model: cfg.model })
+      results.push({ ...item, vision_analysis: `[Vision AI error: ${e instanceof Error ? e.message : 'unknown'}]`, vision_processed: false, vision_model: model })
     }
   }
   return results
