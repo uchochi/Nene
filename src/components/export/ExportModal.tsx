@@ -14,6 +14,7 @@ export function ExportModal({ open, onClose }: ExportModalProps) {
   const datasetResult = useWorkflowStore(s => s.datasetResult)
   const workflowName = useWorkflowStore(s => s.workflowName)
   const addToHistory = useWorkflowStore(s => s.addToHistory)
+  const runTokens = useWorkflowStore(s => s.lastRunTokens)
   const deductCredits = useCreditStore(s => s.deductCredits)
   const [copyMsg, setCopyMsg] = useState('')
   const [exporting, setExporting] = useState(false)
@@ -76,6 +77,19 @@ export function ExportModal({ open, onClose }: ExportModalProps) {
           <div className="text-n8n-gray-light">Filename</div>
           <div className="text-white font-medium truncate">{filename}</div>
         </div>
+
+        {/* Token usage summary */}
+        {runTokens > 0 && (
+          <div className="flex items-center justify-between bg-n8n-dark-3 rounded-lg px-4 py-3 text-sm">
+            <span className="text-n8n-gray-light">Tokens used to generate</span>
+            <span className="text-white font-medium tabular-nums">
+              {runTokens.toLocaleString()} tokens
+              <span className="text-n8n-gray text-xs ml-1.5">
+                ({Math.ceil(runTokens / 100)} credits)
+              </span>
+            </span>
+          </div>
+        )}
 
         <div>
           <label className="label">Download Link</label>

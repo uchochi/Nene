@@ -96,6 +96,8 @@ interface WorkflowState {
   isRunning: boolean
   onboardingShown: boolean
   datasetResult: string | null
+  /** Tokens consumed by the most recent workflow run */
+  lastRunTokens: number
   history: HistoryItem[]
   showOnboarding: boolean
 
@@ -201,6 +203,35 @@ function getAIProvider(): string {
   return import.meta.env.VITE_AI_PROVIDER ?? 'openrouter'
 }
 
+/* ── Token tracking for billing ── */
+
+/**
+ * Module-level accumulator for tokens consumed during a single workflow run.
+ * Reset at the start of runWorkflow() and read at the end. Each AI call
+ * (ai-completion, transcribe) adds its usage.total_tokens here.
+ */
+let runTokenAccumulator = 0
+
+/**
+ * Wraps an AI fetch call, parses the JSON response, and accumulates the
+ * reported token usage. Returns the parsed JSON so callers can read both
+ * `content` and `tokensUsed`.
+ */
+async function fetchAI(
+  url: string,
+  body: Record<string, unknown>,
+): Promise<{ content?: string; error?: string; tokensUsed?: number }> {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const result = await response.json()
+  const tokens = typeof result.tokensUsed === 'number' ? result.tokensUsed : 0
+  runTokenAccumulator += tokens
+  return result
+}
+
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
 
 function scheduleAutoSave(get: () => WorkflowState): void {
@@ -221,6 +252,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   isRunning: false,
   onboardingShown: !!localStorage.getItem('ooguy-onboarding-seen'),
   datasetResult: null,
+  lastRunTokens: 0,
   history: [],
   showOnboarding: !localStorage.getItem('ooguy-onboarding-seen'),
   savedWorkflows: [],
@@ -563,7 +595,9 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   runWorkflow: async (): Promise<boolean> => {
     const { nodes, edges } = get()
-    set({ isRunning: true, datasetResult: null })
+    /* Reset token accumulator at the start of each run */
+    runTokenAccumulator = 0
+    set({ isRunning: true, datasetResult: null, lastRunTokens: 0 })
 
     try {
       const sorted = topologicalSort(nodes, edges)
@@ -655,9 +689,12 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
           }
         }
       }
+      /* Persist total tokens consumed during this run */
+      set({ lastRunTokens: runTokenAccumulator })
       return true
     } catch (err) {
       console.error('Workflow error:', err)
+      set({ lastRunTokens: runTokenAccumulator })
       return false
     } finally {
       set({ isRunning: false })
@@ -754,26 +791,21 @@ async function generateTagsWithAI(item: Record<string, unknown>): Promise<string
   const content = extractTextContent(item)
   if (!content) return ['general']
 
-  const response = await fetch('/api/ai-completion', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      messages: [
-        { role: 'system', content: 'You are a content tagging assistant. Analyze the given content and return ONLY a JSON array of 3-7 relevant tags as lowercase strings. Example: ["humor","wordplay","culture"]' },
-        { role: 'user', content: `Tag this content:\n\n${content.slice(0, 2000)}` },
-      ],
-      model: getDefaultModel(),
-      provider: getAIProvider(),
-      temperature: 0.3,
-    }),
+  const result = await fetchAI('/api/ai-completion', {
+    messages: [
+      { role: 'system', content: 'You are a content tagging assistant. Analyze the given content and return ONLY a JSON array of 3-7 relevant tags as lowercase strings. Example: ["humor","wordplay","culture"]' },
+      { role: 'user', content: `Tag this content:\n\n${content.slice(0, 2000)}` },
+    ],
+    model: getDefaultModel(),
+    provider: getAIProvider(),
+    temperature: 0.3,
   })
 
-  const result = await response.json()
-  if (!response.ok || result.error) {
+  if (result.error) {
     throw new Error(result.error || 'Tag generation failed')
   }
 
-  return parseStringArray(result.content)
+  return parseStringArray(result.content || '')
 }
 
 /** Improved keyword-based tag extraction (no AI call). */
@@ -867,28 +899,23 @@ async function translateItem(
     ? ' IMPORTANT: If the content uses humor mechanics (puns, wordplay, idioms), ADAPT them to the target language so they work natively — do not translate literally. The result should feel natural and funny to a native speaker.'
     : ''
 
-  const response = await fetch('/api/ai-completion', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      messages: [
-        { role: 'system', content: `You are a professional translator. Translate the following JSON content into ${targetLang}. Return ONLY a JSON object with the same keys, values translated.${preserveNote}` },
-        { role: 'user', content: JSON.stringify(textsToTranslate, null, 2) },
-      ],
-      model: getDefaultModel(),
-      provider: getAIProvider(),
-      temperature: 0.3,
-    }),
+  const result = await fetchAI('/api/ai-completion', {
+    messages: [
+      { role: 'system', content: `You are a professional translator. Translate the following JSON content into ${targetLang}. Return ONLY a JSON object with the same keys, values translated.${preserveNote}` },
+      { role: 'user', content: JSON.stringify(textsToTranslate, null, 2) },
+    ],
+    model: getDefaultModel(),
+    provider: getAIProvider(),
+    temperature: 0.3,
   })
 
-  const result = await response.json()
-  if (!response.ok || result.error) {
+  if (result.error) {
     throw new Error(result.error || 'Translation API error')
   }
 
   let translatedTexts: Record<string, unknown> = {}
   try {
-    translatedTexts = JSON.parse(result.content)
+    translatedTexts = JSON.parse(result.content || '{}')
   } catch {
     translatedTexts = { raw_content: result.content }
   }
@@ -944,25 +971,18 @@ async function callAI(item: Record<string, unknown>, cfg: AITransformNodeConfig)
   void media; void ai_processed; void categorized; void grouped; void translated; void translation_error
   const text = JSON.stringify(content, null, 2).slice(0, 3000)
   const userPrompt = cfg.prompt || `Analyze the following content and produce a structured JSON object. Choose field names and analysis depth appropriate to whatever the content actually is — do not assume a specific topic or format. Include at minimum: a "summary" field, a "key_topics" array, a "sentiment" field, and any other fields that are relevant to this specific content.\n\nContent: ${text}`
-  const provider = getAIProvider()
-  const model = getDefaultModel()
 
-  const response = await fetch('/api/ai-completion', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      messages: [
-        { role: 'system', content: 'You are an intelligent data analysis assistant. Analyze content and produce structured JSON output. Adapt your analysis to the actual content type — do not assume humor, education, or any specific category. Choose output fields that are relevant to what the content actually contains.' },
-        { role: 'user', content: userPrompt },
-      ],
-      model,
-      provider,
-    }),
+  const result = await fetchAI('/api/ai-completion', {
+    messages: [
+      { role: 'system', content: 'You are an intelligent data analysis assistant. Analyze content and produce structured JSON output. Adapt your analysis to the actual content type — do not assume humor, education, or any specific category. Choose output fields that are relevant to what the content actually contains.' },
+      { role: 'user', content: userPrompt },
+    ],
+    model: getDefaultModel(),
+    provider: getAIProvider(),
   })
 
-  const result = await response.json()
-  if (!response.ok || result.error) {
-    throw new Error(result.error || `AI API error: ${response.status}`)
+  if (result.error) {
+    throw new Error(result.error || 'AI API error')
   }
   return result.content || 'No response'
 }
@@ -1086,26 +1106,21 @@ async function ocrProcess(
       continue
     }
     try {
-      const response = await fetch('/api/ai-completion', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          provider,
-          model,
-          temperature: 0.1,
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'text', text: prompt },
-              { type: 'image_url', image_url: { url: media.signedUrl } },
-            ],
-          }],
-        }),
+      const result = await fetchAI('/api/ai-completion', {
+        provider,
+        model,
+        temperature: 0.1,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: prompt },
+            { type: 'image_url', image_url: { url: media.signedUrl } },
+          ],
+        }],
       })
-      const result = await response.json()
-      const extractedText = response.ok && !result.error
+      const extractedText = !result.error
         ? (result.content || '').trim()
-        : `[OCR failed: ${result.error || response.status}]`
+        : `[OCR failed: ${result.error}]`
       results.push({ ...item, extracted_text: extractedText, ocr_processed: true, ocr_model: model })
     } catch (e) {
       results.push({ ...item, extracted_text: `[OCR error: ${e instanceof Error ? e.message : 'unknown'}]`, ocr_processed: false, ocr_model: model })
@@ -1137,20 +1152,15 @@ async function transcribeProcess(
       const base64 = await blobToBase64(audioBlob)
       const format = media.mimeType.split('/')[1]?.split(';')[0] || 'wav'
 
-      const response = await fetch('/api/transcribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          audio: base64,
-          format,
-          prompt: customPrompt || undefined,
-          model,
-        }),
+      const result = await fetchAI('/api/transcribe', {
+        audio: base64,
+        format,
+        prompt: customPrompt || undefined,
+        model,
       })
-      const result = await response.json()
-      const transcript = response.ok && !result.error
+      const transcript = !result.error
         ? (result.content || '').trim()
-        : `[Transcription failed: ${result.error || response.status}]`
+        : `[Transcription failed: ${result.error}]`
       results.push({ ...item, transcript, transcribe_processed: true, transcribe_model: model })
     } catch (e) {
       results.push({ ...item, transcript: `[Transcription error: ${e instanceof Error ? e.message : 'unknown'}]`, transcribe_processed: false, transcribe_model: model })
@@ -1178,26 +1188,21 @@ async function captionProcess(
       continue
     }
     try {
-      const response = await fetch('/api/ai-completion', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          provider,
-          model,
-          temperature: 0.5,
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'text', text: prompt },
-              { type: 'image_url', image_url: { url: media.signedUrl } },
-            ],
-          }],
-        }),
+      const result = await fetchAI('/api/ai-completion', {
+        provider,
+        model,
+        temperature: 0.5,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: prompt },
+            { type: 'image_url', image_url: { url: media.signedUrl } },
+          ],
+        }],
       })
-      const result = await response.json()
-      const description = response.ok && !result.error
+      const description = !result.error
         ? (result.content || '').trim()
-        : `[Caption failed: ${result.error || response.status}]`
+        : `[Caption failed: ${result.error}]`
       results.push({ ...item, image_description: description, caption_processed: true, caption_model: model })
     } catch (e) {
       results.push({ ...item, image_description: `[Caption error: ${e instanceof Error ? e.message : 'unknown'}]`, caption_processed: false, caption_model: model })
@@ -1252,23 +1257,18 @@ Output valid JSON only.`
     }
 
     try {
-      const response = await fetch('/api/ai-completion', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          provider,
-          model,
-          temperature: 0.7,
-          messages: [{
-            role: 'user',
-            content: contentParts,
-          }],
-        }),
+      const result = await fetchAI('/api/ai-completion', {
+        provider,
+        model,
+        temperature: 0.7,
+        messages: [{
+          role: 'user',
+          content: contentParts,
+        }],
       })
-      const result = await response.json()
-      const analysis = response.ok && !result.error
+      const analysis = !result.error
         ? (result.content || '').trim()
-        : `[Vision AI failed: ${result.error || response.status}]`
+        : `[Vision AI failed: ${result.error}]`
       results.push({ ...item, vision_analysis: analysis, vision_processed: true, vision_model: model })
     } catch (e) {
       results.push({ ...item, vision_analysis: `[Vision AI error: ${e instanceof Error ? e.message : 'unknown'}]`, vision_processed: false, vision_model: model })

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { History, FileText, Zap, Trash2 } from 'lucide-react'
 import { useWorkflowStore } from '../store/workflowStore'
 import { useCreditStore, type CreditTransaction } from '../store/creditStore'
-import { formatCurrency } from '../utils/credits'
+import { formatCurrency, creditsToTokens, formatTokens } from '../utils/credits'
 
 type Tab = 'exports' | 'transactions'
 
@@ -149,6 +149,9 @@ function TransactionsTab({ transactions }: TransactionsTabProps) {
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium text-white">
               {txn.creditsAwarded.toLocaleString()} credits
+              <span className="text-n8n-orange/70 text-xs ml-1.5">
+                ({formatTokens(creditsToTokens(txn.creditsAwarded))})
+              </span>
             </div>
             <div className="text-xs text-n8n-gray truncate">
               {new Date(txn.createdAt).toLocaleString()} · {txn.reference}

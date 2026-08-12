@@ -1,15 +1,16 @@
 import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Zap, Plus, TrendingUp, History as HistoryIcon, ArrowRight } from 'lucide-react'
+import { Zap, Plus, TrendingUp, History as HistoryIcon, ArrowRight, Coins } from 'lucide-react'
 import { useCreditStore } from '../store/creditStore'
 import { CreditTopUp } from '../components/credits/CreditTopUp'
-import { formatCurrency } from '../utils/credits'
+import { formatCurrency, creditsToTokens, formatTokens } from '../utils/credits'
 
 export function CreditsPage() {
   const navigate = useNavigate()
   const balance = useCreditStore(s => s.balance)
   const totalPurchased = useCreditStore(s => s.totalPurchased)
   const transactions = useCreditStore(s => s.transactions)
+  const tokensUsed = useCreditStore(s => s.tokensUsed)
 
   const [showTopUp, setShowTopUp] = useState(false)
   const [reason, setReason] = useState('')
@@ -31,7 +32,7 @@ export function CreditsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">Credits</h1>
         <p className="text-sm text-n8n-gray-light mt-1">
-          Monitor your balance and purchase credits for workflow runs and exports.
+          10,000 credits = 1M tokens. You're billed for the tokens each workflow actually consumes.
         </p>
       </div>
 
@@ -48,6 +49,9 @@ export function CreditsPage() {
                 {balance.toLocaleString()}
                 <span className="text-base font-normal text-n8n-gray-light ml-1.5">credits</span>
               </div>
+              <div className="text-xs text-n8n-orange/80 mt-0.5">
+                {formatTokens(creditsToTokens(balance))} remaining
+              </div>
             </div>
           </div>
           <button onClick={() => onBuy()} className="btn-primary text-sm inline-flex items-center gap-2">
@@ -58,13 +62,20 @@ export function CreditsPage() {
       </div>
 
       {/* mini stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <div className="stat-card">
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp size={16} className="text-n8n-orange" />
             <span className="text-xs text-n8n-gray-light uppercase tracking-wider">Lifetime Credits</span>
           </div>
           <div className="text-xl font-bold text-white">{totalPurchased.toLocaleString()}</div>
+        </div>
+        <div className="stat-card">
+          <div className="flex items-center gap-2 mb-2">
+            <Coins size={16} className="text-n8n-orange" />
+            <span className="text-xs text-n8n-gray-light uppercase tracking-wider">Tokens Used</span>
+          </div>
+          <div className="text-xl font-bold text-white">{formatTokens(tokensUsed)}</div>
         </div>
         <div className="stat-card">
           <div className="flex items-center gap-2 mb-2">
@@ -122,6 +133,9 @@ export function CreditsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-white">
                     {txn.creditsAwarded.toLocaleString()} credits
+                    <span className="text-n8n-orange/70 text-xs ml-1.5">
+                      ({formatTokens(creditsToTokens(txn.creditsAwarded))})
+                    </span>
                   </div>
                   <div className="text-xs text-n8n-gray">
                     {new Date(txn.createdAt).toLocaleDateString()}

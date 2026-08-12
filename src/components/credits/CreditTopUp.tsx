@@ -4,7 +4,7 @@ import { useCreditStore } from '../../store/creditStore'
 import { useAuthStore } from '../../store/authStore'
 import {
   PLANS, getPlanPrice, fetchExchangeRates,
-  paystackAmount, formatCurrency, type Plan,
+  paystackAmount, formatCurrency, planTokenLabel, type Plan,
 } from '../../utils/credits'
 import { X, Check, ChevronRight, Zap, Loader2, AlertCircle, ArrowLeft, Tag } from 'lucide-react'
 
@@ -336,7 +336,9 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
             <div className="space-y-4">
               <div>
                 <h2 className="text-lg font-bold text-white">Choose your plan</h2>
-                <p className="text-sm text-n8n-gray-light mt-1">Each credit equals one workflow run or export.</p>
+                <p className="text-sm text-n8n-gray-light mt-1">
+                  1 credit = 100 AI tokens. You're billed for the tokens you actually use.
+                </p>
               </div>
 
               {/* coupon code — always visible */}
@@ -381,7 +383,12 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-white">{plan.label}</div>
-                      <div className="text-xs text-n8n-gray">{plan.credits.toLocaleString()} credits</div>
+                      <div className="text-xs text-n8n-gray">
+                        {plan.credits.toLocaleString()} credits
+                      </div>
+                      <div className="text-[10px] text-n8n-orange/80 mt-0.5">
+                        {planTokenLabel(plan.credits)}
+                      </div>
                     </div>
                     <div className="text-right flex-shrink-0">
                       <div className="text-sm font-bold text-white">
@@ -437,7 +444,10 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
                 <span className="text-3xl block mb-2">{selectedCountry.flag}</span>
                 <h2 className="text-lg font-bold text-white">{selectedPlan.label}</h2>
                 <p className="text-sm text-n8n-gray-light mt-1">
-                  {selectedPlan.credits.toLocaleString()} credits for{' '}
+                  {selectedPlan.credits.toLocaleString()} credits
+                  <span className="text-n8n-orange/80 mx-1.5">·</span>
+                  <span className="text-n8n-orange font-medium">{planTokenLabel(selectedPlan.credits)}</span>
+                  {' '}for{' '}
                   <span className={`font-semibold ${hasDiscount ? 'text-green-400' : 'text-n8n-orange'}`}>
                     {formatPrice(selectedPlan, selectedCountry.currency)}
                   </span>
@@ -484,7 +494,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
                   <Check size={24} className="mx-auto mb-2 text-green-400" />
                   <p className="text-sm text-green-400 font-medium">Payment successful!</p>
                   <p className="text-xs text-n8n-gray-light mt-1">
-                    {selectedPlan.credits.toLocaleString()} credits added to your account.
+                    {selectedPlan.credits.toLocaleString()} credits ({planTokenLabel(selectedPlan.credits)}) added to your account.
                   </p>
                 </div>
               )}

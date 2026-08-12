@@ -260,7 +260,7 @@ export default function LandingPage() {
                 </div>
                 <h2 className="text-3xl md:text-4xl font-bold mb-4">Pay As You Go, Scale When Ready</h2>
                 <p className="text-n8n-gray-light max-w-lg mx-auto mb-8">
-                  Each AI operation uses credits — you only pay for what you process.
+                  10,000 credits = 1M AI tokens. You're billed only for the tokens each workflow actually consumes — no wasted credits.
                   Use coupon codes for discounts. Secure payments via Paystack.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md mx-auto">
@@ -269,8 +269,8 @@ export default function LandingPage() {
                     <div className="text-xs text-n8n-gray">Base Top-Up</div>
                   </div>
                   <div className="bg-n8n-dark-4/60 rounded-xl p-4 border border-n8n-dark-5">
-                    <div className="text-xl font-bold text-n8n-orange mb-1">1250</div>
-                    <div className="text-xs text-n8n-gray">Credits Included</div>
+                    <div className="text-xl font-bold text-n8n-orange mb-1">1M</div>
+                    <div className="text-xs text-n8n-gray">AI Tokens (10,000 credits)</div>
                   </div>
                 </div>
               </div>

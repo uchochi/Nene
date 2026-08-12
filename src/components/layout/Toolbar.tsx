@@ -4,7 +4,7 @@ import { useWorkflowStore } from '../../store/workflowStore'
 import { useCreditStore } from '../../store/creditStore'
 import { Play, Save, Trash2, Menu, FileDown, Upload, ArrowLeft } from 'lucide-react'
 import { isTMA, hapticFeedback } from '../../utils/tma'
-import { COST_PER_RUN } from '../../utils/credits'
+import { ESTIMATED_CREDITS_PER_RUN } from '../../utils/credits'
 import { encodeDownloadData } from '../../utils/downloadLink'
 
 interface ToolbarProps {
@@ -44,18 +44,31 @@ export function Toolbar({ onToggleSidebar, onBuyCredits, onOpenExport }: Toolbar
   }, [showMobileActions])
 
   const canAfford = useCreditStore(s => s.canAfford)
-  const deductCredits = useCreditStore(s => s.deductCredits)
+  const deductTokens = useCreditStore(s => s.deductTokens)
+  const recordWorkflowRun = useCreditStore(s => s.recordWorkflowRun)
   const balance = useCreditStore(s => s.balance)
 
   const handleRun = async () => {
-    if (!canAfford(COST_PER_RUN)) {
-      onBuyCredits(`You need at least ${COST_PER_RUN} credit to run a workflow. You have ${balance}.`)
+    if (!canAfford(ESTIMATED_CREDITS_PER_RUN)) {
+      onBuyCredits(`You need at least ${ESTIMATED_CREDITS_PER_RUN} credits to run a workflow. You have ${balance.toLocaleString()}.`)
       return
     }
 
     const ok = await runWorkflow()
     if (ok) {
-      await deductCredits(COST_PER_RUN)
+      /* Read tokens consumed during the run directly from store state
+         (avoid stale closure value) */
+      const tokens = useWorkflowStore.getState().lastRunTokens
+      if (tokens > 0) {
+        await deductTokens(tokens)
+      }
+      await recordWorkflowRun({
+        workflowName,
+        nodesCount: nodes.length,
+        tokensUsed: tokens,
+        creditsDeducted: Math.ceil(tokens / 100),
+        status: 'completed',
+      })
       if (isTMA()) hapticFeedback('success')
     }
   }

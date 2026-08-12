@@ -1,5 +1,6 @@
 /* ------------------------------------------------------------------ */
 /*  Credit System — pricing, discount, exchange rates, calculations    */
+/*  10,000 credits = 1M tokens (1 credit = 100 tokens)                 */
 /* ------------------------------------------------------------------ */
 
 export interface Plan {
@@ -9,14 +10,46 @@ export interface Plan {
   priceUsdCents: number
 }
 
+/* Token ↔ credit conversion constants */
+export const TOKENS_PER_CREDIT = 100
+export const CREDITS_PER_MILLION_TOKENS = 10000
+
 export const PLANS: Plan[] = [
-  { id: '1250', credits: 1250, label: 'Starter',  priceUsdCents: 1000 },  // $10
-  { id: '2500', credits: 2500, label: 'Pro',      priceUsdCents: 2000 },  // $20
-  { id: '5000', credits: 5000, label: 'Business', priceUsdCents: 4000 },  // $40
+  { id: '10000', credits: 10000, label: 'Starter',  priceUsdCents: 1000 },  // 1M tokens, $10
+  { id: '20000', credits: 20000, label: 'Pro',      priceUsdCents: 2000 },  // 2M tokens, $20
+  { id: '40000', credits: 40000, label: 'Business', priceUsdCents: 4000 },  // 4M tokens, $40
 ]
 
 /* first-time buyers get 75 % off */
 export const FIRST_TIME_DISCOUNT = 0.75  // 75 %
+
+/* ── Token conversion helpers ── */
+
+export function tokensToCredits(tokens: number): number {
+  return Math.ceil(tokens / TOKENS_PER_CREDIT)
+}
+
+export function creditsToTokens(credits: number): number {
+  return credits * TOKENS_PER_CREDIT
+}
+
+/** Format token counts compactly: 1.2M, 350K, 800 */
+export function formatTokens(tokens: number): string {
+  if (tokens >= 1_000_000) {
+    const m = tokens / 1_000_000
+    return `${m % 1 === 0 ? m.toFixed(0) : m.toFixed(1)}M tokens`
+  }
+  if (tokens >= 1_000) {
+    const k = tokens / 1_000
+    return `${k % 1 === 0 ? k.toFixed(0) : k.toFixed(1)}K tokens`
+  }
+  return `${tokens} tokens`
+}
+
+/** Shorthand token label for a plan (e.g. "1M tokens") */
+export function planTokenLabel(credits: number): string {
+  return formatTokens(creditsToTokens(credits))
+}
 
 export function getPlanPrice(plan: Plan, isFirstPurchase: boolean): number {
   if (isFirstPurchase) {
@@ -39,8 +72,9 @@ export function runsRemaining(balance: number): number {
   return Math.max(0, balance)
 }
 
-/* cost per single run in credits */
-export const COST_PER_RUN = 1
+/* Fallback estimate: a typical workflow run uses ~2000 tokens (20 credits).
+   Used for pre-run balance checks when actual token count is unknown. */
+export const ESTIMATED_CREDITS_PER_RUN = 20
 export const COST_PER_EXPORT = 1
 
 /* ------------------------------------------------------- */

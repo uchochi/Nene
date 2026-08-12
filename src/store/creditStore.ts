@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from './authStore'
 import { uuid } from '../utils/uuid'
+import { tokensToCredits, TOKENS_PER_CREDIT } from '../utils/credits'
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -26,8 +27,14 @@ interface CreditState {
   loading: boolean
   initialized: boolean
 
+  /* token tracking */
+  tokensUsed: number
+  /** Tokens consumed by the most recent workflow run (for UI display) */
+  lastRunTokens: number
+
   initialize: (userId: string) => Promise<void>
   deductCredits: (amount: number) => Promise<boolean>
+  deductTokens: (tokens: number) => Promise<boolean>
   canAfford: (amount: number) => boolean
   addCredits: (
     planId: string,
@@ -37,6 +44,14 @@ interface CreditState {
     reference: string,
   ) => Promise<void>
   syncWithServer: (userId: string) => Promise<void>
+  /** Records a completed workflow run (tokens + credits) to Supabase */
+  recordWorkflowRun: (params: {
+    workflowName: string
+    nodesCount: number
+    tokensUsed: number
+    creditsDeducted: number
+    status: 'completed' | 'failed'
+  }) => Promise<void>
 }
 
 /* ------------------------------------------------------- */
@@ -73,6 +88,8 @@ export const useCreditStore = create<CreditState>((set, get) => ({
   ...loadLocal(),
   loading: false,
   initialized: false,
+  tokensUsed: 0,
+  lastRunTokens: 0,
 
   initialize: async (userId: string) => {
     set({ loading: true })
@@ -101,10 +118,12 @@ export const useCreditStore = create<CreditState>((set, get) => ({
           const totalPurchased = local.totalPurchased > profile.total_purchased
             ? local.totalPurchased
             : profile.total_purchased
+          const tokensUsed = profile.tokens_used ?? 0
 
           set({
             balance,
             totalPurchased,
+            tokensUsed,
             transactions: (txns || []).map(mapTxn),
             loading: false,
             initialized: true,
@@ -119,6 +138,7 @@ export const useCreditStore = create<CreditState>((set, get) => ({
                 user_id: userId,
                 balance,
                 total_purchased: totalPurchased,
+                tokens_used: tokensUsed,
                 updated_at: new Date().toISOString(),
               }, { onConflict: 'user_id' })
             } catch { /* best-effort */ }
@@ -168,12 +188,51 @@ export const useCreditStore = create<CreditState>((set, get) => ({
     return true
   },
 
+  deductTokens: async (tokens: number) => {
+    if (tokens <= 0) return true
+    const credits = tokensToCredits(tokens)
+    const ok = await get().deductCredits(credits)
+    if (ok) {
+      const newTokensUsed = get().tokensUsed + tokens
+      set({ tokensUsed: newTokensUsed, lastRunTokens: tokens })
+
+      /* persist tokens_used to Supabase */
+      const userId = getCurrentUserId()
+      if (userId && supabase) {
+        try {
+          await supabase.from('user_credits').upsert({
+            user_id: userId,
+            tokens_used: newTokensUsed,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'user_id' })
+        } catch { /* best-effort */ }
+      }
+    }
+    return ok
+  },
+
+  recordWorkflowRun: async (params) => {
+    const userId = getCurrentUserId()
+    if (!userId || !supabase) return
+    try {
+      await supabase.from('workflow_runs').insert({
+        user_id: userId,
+        workflow_name: params.workflowName,
+        nodes_count: params.nodesCount,
+        tokens_used: params.tokensUsed,
+        credits_deducted: params.creditsDeducted,
+        status: params.status,
+      })
+    } catch { /* best-effort logging */ }
+  },
+
   addCredits: async (planId, credits, amountPaid, currency, reference) => {
     const { balance, totalPurchased, transactions } = get()
     const now = new Date().toISOString()
 
     /* 30-day subscription expiry for plan purchases */
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    const tokensAwarded = credits * TOKENS_PER_CREDIT
 
     const txn: CreditTransaction = {
       id: uuid(),
@@ -213,6 +272,7 @@ export const useCreditStore = create<CreditState>((set, get) => ({
           user_id: userId,
           plan_id: planId,
           credits_awarded: credits,
+          tokens_awarded: tokensAwarded,
           amount_paid: amountPaid,
           currency,
           reference,
@@ -243,6 +303,7 @@ export const useCreditStore = create<CreditState>((set, get) => ({
         set({
           balance: profile.balance,
           totalPurchased: profile.total_purchased,
+          tokensUsed: profile.tokens_used ?? 0,
           transactions: (txns || []).map(mapTxn),
         })
         saveLocal({ balance: profile.balance, totalPurchased: profile.total_purchased, transactions: (txns || []).map(mapTxn) })

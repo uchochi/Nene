@@ -13,9 +13,10 @@ A step-by-step walkthrough for building data pipelines, formatting LLM training 
 5. [Example 3: Translate & Localize a Dataset](#5-example-3-translate--localize-a-dataset)
 6. [Example 4: Full Pipeline — Every Node in Action](#6-example-4-full-pipeline--every-node-in-action)
 7. [Exporting & Using Your Dataset](#7-exporting--using-your-dataset)
-8. [Understanding the Output](#8-understanding-the-output)
-9. [Tips & Best Practices](#9-tips--best-practices)
-10. [Troubleshooting](#10-troubleshooting)
+8. [Billing & Tokens](#8-billing--tokens)
+9. [Understanding the Output](#9-understanding-the-output)
+10. [Tips & Best Practices](#10-tips--best-practices)
+11. [Troubleshooting](#11-troubleshooting)
 
 ---
 
@@ -385,7 +386,59 @@ The media files themselves are not embedded in the JSONL — they're ephemeral a
 
 ---
 
-## 8. Understanding the Output
+## 8. Billing & Tokens
+
+### How Billing Works
+
+Billing is **token-based** — you pay only for the AI tokens each workflow actually consumes. There are no flat per-run fees.
+
+**The conversion:**
+- **10,000 credits = 1M tokens** (1 credit = 100 tokens)
+- When you run a workflow, every AI call (AI Transform, Translate, Tag auto-tag, OCR, Transcribe, Caption, Vision AI) reports its token usage back to the app.
+- At the end of the run, the total tokens consumed are converted to credits and deducted: `credits = ceil(tokens / 100)`.
+
+### Pricing Plans
+
+| Plan | Credits | Tokens | Price |
+|------|---------|--------|-------|
+| Starter | 10,000 | 1M | $10 |
+| Pro | 20,000 | 2M | $20 |
+| Business | 40,000 | 4M | $40 |
+
+First-time buyers get **75% off** with coupon code `new2026set`.
+
+### What Consumes Tokens
+
+| Operation | Approx. Tokens |
+|-----------|----------------|
+| AI Transform (per item) | ~500–2000 |
+| Translate (per item, per language) | ~300–1000 |
+| Tag auto-tag (per item) | ~200–500 |
+| OCR / Caption / Vision AI (per image) | ~500–1500 |
+| Transcribe (per audio file) | ~1000–5000 |
+
+> **Note:** Token counts vary based on content length and model. The app tracks the exact count from each AI response and deducts precisely. Short workflows cost less; long workflows cost more — you only pay for what you process.
+
+### Exports
+
+Exports (downloading the dataset file) cost a **flat 1 credit** — no tokens involved, since no AI runs during export.
+
+### Checking Your Balance
+
+Your balance appears in two places:
+- **Top bar / sidebar** — shows credits + token equivalent (e.g. "10,000 credits (1M tokens)")
+- **Credits page** — shows balance, tokens used (lifetime), purchase count, and total spent
+
+### Migration for Existing Users
+
+If you had credits before the token-based billing update:
+- Your balance was **multiplied by 8x** (old 1,250 credits → new 10,000 credits)
+- This preserves the same dollar-for-token value (old $10 = 1,250 runs → new $10 = 1M tokens)
+- An in-app announcement explains the change on first visit after the update
+
+---
+
+## 9. Understanding the Output
 
 ### Basic Text Dataset
 
@@ -484,7 +537,7 @@ Each JSONL line follows this schema:
 
 ---
 
-## 9. Tips & Best Practices
+## 10. Tips & Best Practices
 
 ### Dataset Quality
 
@@ -530,7 +583,7 @@ Input → Format → AI Transform → Tag → Group → Translate → Output
 
 ---
 
-## 10. Troubleshooting
+## 11. Troubleshooting
 
 | Problem | Solution |
 |---------|----------|

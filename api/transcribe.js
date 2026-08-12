@@ -104,8 +104,9 @@ export async function POST(req) {
     }
 
     const content = result.choices?.[0]?.message?.content || ''
+    const tokensUsed = result.usage?.total_tokens || 0
 
-    return new Response(JSON.stringify({ content }), {
+    return new Response(JSON.stringify({ content, tokensUsed }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders() },
     })

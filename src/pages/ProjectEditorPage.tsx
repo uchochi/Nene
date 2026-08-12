@@ -8,6 +8,7 @@ import { ConfigPanel } from '../components/nodes/ConfigPanel'
 import { DatasetPreview } from '../components/dataset/DatasetPreview'
 import { ExportModal } from '../components/export/ExportModal'
 import { CreditTopUp } from '../components/credits/CreditTopUp'
+import { TokenBillingAnnouncement } from '../components/credits/TokenBillingAnnouncement'
 import { useWorkflowStore } from '../store/workflowStore'
 
 export function ProjectEditorPage() {
@@ -57,6 +58,7 @@ export function ProjectEditorPage() {
   return (
     <ReactFlowProvider>
       <CreditTopUp open={showTopUp} onClose={() => setShowTopUp(false)} reason={topUpReason} />
+      <TokenBillingAnnouncement />
       {showExport && <ExportModal open={showExport} onClose={() => setShowExport(false)} />}
 
       <div className="h-screen w-screen flex flex-col overflow-hidden bg-n8n-dark">

@@ -1,4 +1,5 @@
 import { useCreditStore } from '../../store/creditStore'
+import { creditsToTokens, formatTokens } from '../../utils/credits'
 import { Zap, Plus } from 'lucide-react'
 
 interface CreditBalanceProps {
@@ -8,7 +9,8 @@ interface CreditBalanceProps {
 export function CreditBalance({ onBuyCredits }: CreditBalanceProps) {
   const balance = useCreditStore(s => s.balance)
 
-  const low = balance <= 10
+  const tokens = creditsToTokens(balance)
+  const low = tokens <= 100000   // < 100K tokens
   const empty = balance <= 0
 
   return (
@@ -24,6 +26,9 @@ export function CreditBalance({ onBuyCredits }: CreditBalanceProps) {
       <Zap size={14} />
       <span className="tabular-nums">{balance.toLocaleString()}</span>
       <span className="text-current/70 hidden sm:inline">credits</span>
+      <span className="text-current/50 hidden md:inline text-[10px]">
+        ({formatTokens(tokens)})
+      </span>
       {low && (
         <button
           onClick={onBuyCredits}
