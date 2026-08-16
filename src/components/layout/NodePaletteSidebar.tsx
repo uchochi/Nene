@@ -27,6 +27,7 @@ export function NodePaletteSidebar({ isOpen, onClose }: NodePaletteSidebarProps)
       )}
 
       <aside
+        data-tour="node-palette"
         className={`fixed lg:static inset-y-0 left-0 z-20 w-64 bg-n8n-dark-2 border-r border-n8n-dark-4
           flex flex-col h-full overflow-hidden flex-shrink-0 transition-transform duration-200
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}

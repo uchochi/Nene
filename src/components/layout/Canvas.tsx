@@ -66,7 +66,7 @@ export function Canvas() {
   )
 
   return (
-    <div ref={reactFlowWrapper} className="flex-1 h-full">
+    <div ref={reactFlowWrapper} data-tour="canvas" className="flex-1 h-full">
       <ReactFlow
         nodes={nodes}
         edges={edges}

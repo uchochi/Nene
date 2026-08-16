@@ -1,15 +1,21 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import { useTourStore } from '../tour/tourStore'
+import { useWorkflowStore } from '../store/workflowStore'
 import {
-  User, Mail, Key,
+  User, Mail, Key, Map,
   Copy, Check, Eye, EyeOff, Loader2, LogOut, Lock,
-  AlertTriangle,
+  AlertTriangle, PlayCircle,
 } from 'lucide-react'
 
 export function SettingsPage() {
   const user = useAuthStore(s => s.user)
   const signOut = useAuthStore(s => s.signOut)
   const updatePassword = useAuthStore(s => s.updatePassword)
+  const navigate = useNavigate()
+  const startTour = useTourStore(s => s.startTour)
+  const newWorkflow = useWorkflowStore(s => s.newWorkflow)
 
   /* password form */
   const [currentPassword, setCurrentPassword] = useState('')
@@ -236,6 +242,55 @@ export function SettingsPage() {
               </div>
             )}
           </form>
+        </section>
+
+        {/* ─── Guided Tours ─── */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Map size={16} className="text-n8n-orange" />
+            <h2 className="text-sm font-bold text-white uppercase tracking-wider">Guided Tours</h2>
+          </div>
+
+          <div className="bg-n8n-dark-2 border border-n8n-dark-4 rounded-xl p-5 space-y-3">
+            <p className="text-xs text-n8n-gray">
+              New to the app or need a refresher? Replay the interactive walkthroughs.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                onClick={() => {
+                  navigate('/')
+                  setTimeout(() => startTour('overview'), 300)
+                }}
+                className="flex items-center gap-3 p-3.5 rounded-lg bg-n8n-dark-4 hover:bg-n8n-dark-5 border border-n8n-dark-5 hover:border-n8n-orange/40 transition-all text-left group"
+              >
+                <PlayCircle size={20} className="text-n8n-orange flex-shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-white">Welcome Tour</div>
+                  <div className="text-xs text-n8n-gray mt-0.5">Navigation, credits & billing basics</div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  newWorkflow()
+                  navigate('/projects/new')
+                  setTimeout(() => startTour('editor'), 400)
+                }}
+                className="flex items-center gap-3 p-3.5 rounded-lg bg-n8n-dark-4 hover:bg-n8n-dark-5 border border-n8n-dark-5 hover:border-n8n-orange/40 transition-all text-left group"
+              >
+                <PlayCircle size={20} className="text-n8n-orange flex-shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-white">Editor Tour</div>
+                  <div className="text-xs text-n8n-gray mt-0.5">Nodes, connections, run & export</div>
+                </div>
+              </button>
+            </div>
+
+            <p className="text-[11px] text-n8n-gray">
+              Note: the Editor Tour opens a fresh unsaved project with a sample workflow.
+            </p>
+          </div>
         </section>
 
         {/* ─── Danger Zone ─── */}

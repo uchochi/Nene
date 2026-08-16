@@ -9,6 +9,7 @@ import { DatasetPreview } from '../components/dataset/DatasetPreview'
 import { ExportModal } from '../components/export/ExportModal'
 import { CreditTopUp } from '../components/credits/CreditTopUp'
 import { TokenBillingAnnouncement } from '../components/credits/TokenBillingAnnouncement'
+import { EditorTour } from '../tour/EditorTour'
 import { useWorkflowStore } from '../store/workflowStore'
 
 export function ProjectEditorPage() {
@@ -30,6 +31,9 @@ export function ProjectEditorPage() {
     setTopUpReason(reason)
     setShowTopUp(true)
   }, [])
+
+  /* tour helper — opens the node palette (mobile starts collapsed) */
+  const onOpenPalette = useCallback(() => setSidebarOpen(true), [])
 
   /* ── resolve the route param to a workflow ── */
   const isNew = !id || id === 'new'
@@ -59,6 +63,7 @@ export function ProjectEditorPage() {
     <ReactFlowProvider>
       <CreditTopUp open={showTopUp} onClose={() => setShowTopUp(false)} reason={topUpReason} />
       <TokenBillingAnnouncement />
+      <EditorTour onOpenPalette={onOpenPalette} />
       {showExport && <ExportModal open={showExport} onClose={() => setShowExport(false)} />}
 
       <div className="h-screen w-screen flex flex-col overflow-hidden bg-n8n-dark">

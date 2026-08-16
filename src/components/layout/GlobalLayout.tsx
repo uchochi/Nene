@@ -4,6 +4,7 @@ import { GlobalSidebar } from './GlobalSidebar'
 import { TopBar } from './TopBar'
 import { CreditTopUp } from '../credits/CreditTopUp'
 import { TokenBillingAnnouncement } from '../credits/TokenBillingAnnouncement'
+import { OverviewTour } from '../../tour/OverviewTour'
 
 /**
  * Layout for account-level pages (Overview, Projects list, History, Credits, Settings).
@@ -24,6 +25,7 @@ export function GlobalLayout() {
     <div className="h-screen w-screen flex overflow-hidden bg-n8n-dark">
       <CreditTopUp open={showTopUp} onClose={() => setShowTopUp(false)} reason={topUpReason} />
       <TokenBillingAnnouncement />
+      <OverviewTour />
 
       <GlobalSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 

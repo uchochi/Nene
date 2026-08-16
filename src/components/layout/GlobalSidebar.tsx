@@ -55,7 +55,7 @@ export function GlobalSidebar({ isOpen, onClose }: GlobalSidebarProps) {
         </div>
 
         {/* nav items */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
+        <nav data-tour="sidebar-nav" className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
           {NAV_ITEMS.map(item => {
             const Icon = item.icon
             return (

@@ -13,6 +13,7 @@
     "@paystack/inline-js": "^2.23.1",
     "@supabase/supabase-js": "^2.107.0",
     "@telegram-apps/sdk": "^3.11.8",
+    "driver.js": "^1.8.0",
     "lucide-react": "^1.21.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

@@ -29,6 +29,7 @@ export function TopBar({ onToggleSidebar, onBuyCredits }: TopBarProps) {
       {/* credit balance pill — click to go to credits page */}
       <button
         onClick={() => navigate('/credits')}
+        data-tour="credits-pill"
         title="View credits & billing"
         className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
           empty
@@ -47,6 +48,7 @@ export function TopBar({ onToggleSidebar, onBuyCredits }: TopBarProps) {
 
       <button
         onClick={() => onBuyCredits()}
+        data-tour="buy-credits"
         className="btn-primary text-xs px-3 py-1.5 inline-flex items-center gap-1.5"
       >
         <Plus size={14} />

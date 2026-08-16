@@ -95,7 +95,7 @@ export function ConfigPanel() {
   const currentMedia = inputConfig?.media ?? null
 
   return (
-    <div className="panel w-80 flex-shrink-0 flex flex-col max-h-full overflow-hidden">
+    <div data-tour="config-panel" className="panel w-80 flex-shrink-0 flex flex-col max-h-full overflow-hidden">
       <div
         className="flex items-center justify-between px-4 py-3 border-b border-n8n-dark-4"
         style={{ borderBottomColor: color + '40' }}

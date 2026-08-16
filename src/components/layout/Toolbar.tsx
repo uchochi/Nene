@@ -128,6 +128,7 @@ export function Toolbar({ onToggleSidebar, onBuyCredits, onOpenExport }: Toolbar
 
         <button
           onClick={onToggleSidebar}
+          data-tour="palette-toggle"
           className="p-1.5 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-white transition-colors"
           title="Toggle node palette"
         >
@@ -137,6 +138,7 @@ export function Toolbar({ onToggleSidebar, onBuyCredits, onOpenExport }: Toolbar
         {/* back to projects */}
         <button
           onClick={() => navigate('/projects')}
+          data-tour="toolbar-back"
           className="p-1.5 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-white transition-colors"
           title="Back to projects"
         >
@@ -150,6 +152,7 @@ export function Toolbar({ onToggleSidebar, onBuyCredits, onOpenExport }: Toolbar
           title={isDirty ? 'Unsaved changes' : 'Saved'} />
 
         <input
+          data-tour="workflow-name"
           className="bg-transparent text-sm font-medium text-white border-none outline-none focus:bg-n8n-dark-4 px-2 py-1 rounded-lg min-w-0 flex-1 md:w-44 md:flex-none transition-colors"
           value={workflowName}
           onChange={e => setWorkflowName(e.target.value)}
@@ -177,6 +180,7 @@ export function Toolbar({ onToggleSidebar, onBuyCredits, onOpenExport }: Toolbar
           <button
             onClick={handleRun}
             disabled={isRunning || nodes.length === 0}
+            data-tour="run-workflow"
             className="btn-primary flex items-center gap-1.5 text-xs"
           >
             <Play size={14} />
@@ -214,6 +218,7 @@ export function Toolbar({ onToggleSidebar, onBuyCredits, onOpenExport }: Toolbar
         <div className="md:hidden relative" ref={mobileActionsRef}>
           <button
             onClick={() => setShowMobileActions(v => !v)}
+            data-tour="mobile-actions"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-700 hover:bg-green-600 text-xs font-medium text-white transition-colors"
           >
             Actions
