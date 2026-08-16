@@ -32,8 +32,8 @@ export function ProjectEditorPage() {
     setShowTopUp(true)
   }, [])
 
-  /* tour helper — opens the node palette (mobile starts collapsed) */
-  const onOpenPalette = useCallback(() => setSidebarOpen(true), [])
+  /* tour helper — opens/closes the node palette (mobile starts collapsed) */
+  const setPaletteOpen = useCallback((open: boolean) => setSidebarOpen(open), [])
 
   /* ── resolve the route param to a workflow ── */
   const isNew = !id || id === 'new'
@@ -63,7 +63,7 @@ export function ProjectEditorPage() {
     <ReactFlowProvider>
       <CreditTopUp open={showTopUp} onClose={() => setShowTopUp(false)} reason={topUpReason} />
       <TokenBillingAnnouncement />
-      <EditorTour onOpenPalette={onOpenPalette} />
+      <EditorTour setPaletteOpen={setPaletteOpen} />
       {showExport && <ExportModal open={showExport} onClose={() => setShowExport(false)} />}
 
       <div className="h-screen w-screen flex flex-col overflow-hidden bg-n8n-dark">

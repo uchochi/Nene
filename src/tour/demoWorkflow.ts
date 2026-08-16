@@ -12,9 +12,19 @@ export function seedDemoWorkflow(): { inputId: string; formatId: string; outputI
   const { nodes, addNode } = useWorkflowStore.getState()
   if (nodes.length > 0) return null
 
-  addNode('input', { x: 60, y: 180 })
-  addNode('format', { x: 320, y: 180 })
-  addNode('output', { x: 580, y: 180 })
+  /* Vertical chain on narrow screens so all nodes + connections stay visible;
+     horizontal on desktop. Matches the palette's top-to-bottom order. */
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+
+  if (isMobile) {
+    addNode('input', { x: 40, y: 30 })
+    addNode('format', { x: 40, y: 210 })
+    addNode('output', { x: 40, y: 390 })
+  } else {
+    addNode('input', { x: 60, y: 180 })
+    addNode('format', { x: 320, y: 180 })
+    addNode('output', { x: 580, y: 180 })
+  }
 
   const added = useWorkflowStore.getState().nodes
   const [inputNode, formatNode, outputNode] = added

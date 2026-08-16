@@ -210,7 +210,19 @@
   @apply !bg-transparent;
 }
 .react-flow__handle {
-  @apply !bg-n8n-orange !border-2 !border-n8n-dark !w-3 !h-3;
+  @apply !bg-n8n-orange !border-2 !border-n8n-dark !w-3.5 !h-3.5;
+}
+/* Invisible expanded grab/click area around every handle dot.
+   Extends the touch target ~14px in every direction so users stop
+   hitting the node body when aiming for the connector. */
+.react-flow__handle::after {
+  content: '';
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+}
+.react-flow__handle:hover {
+  box-shadow: 0 0 0 4px rgba(255, 100, 33, 0.25);
 }
 .react-flow__handle-connecting {
   @apply !bg-n8n-red;

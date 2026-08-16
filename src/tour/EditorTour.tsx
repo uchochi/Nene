@@ -7,8 +7,8 @@ import { seedDemoWorkflow, nodeSelector } from './demoWorkflow'
 import { useWorkflowStore } from '../store/workflowStore'
 
 interface EditorTourProps {
-  /** Opens the node palette sidebar (needed on mobile where it starts collapsed) */
-  onOpenPalette: () => void
+  /** Opens/closes the node palette sidebar (mobile starts collapsed) */
+  setPaletteOpen: (open: boolean) => void
 }
 
 /**
@@ -19,7 +19,7 @@ interface EditorTourProps {
  *   the tour can point at real nodes, connections, and open the config panel.
  * - Replayable from Settings → Guided Tours.
  */
-export function EditorTour({ onOpenPalette }: EditorTourProps) {
+export function EditorTour({ setPaletteOpen }: EditorTourProps) {
   const activeTour = useTourStore(s => s.activeTour)
   const seen = useTourStore(s => s.seen)
   const startTour = useTourStore(s => s.startTour)
@@ -104,7 +104,7 @@ export function EditorTour({ onOpenPalette }: EditorTourProps) {
               side: 'bottom',
               align: 'start',
               onNextClick: (_el, _step, ctx) => {
-                onOpenPalette()
+                setPaletteOpen(true)
                 setTimeout(() => ctx.driver.moveNext(), 350)
               },
               onPrevClick: (_el, _step, ctx) => ctx.driver.movePrevious(),
@@ -115,9 +115,15 @@ export function EditorTour({ onOpenPalette }: EditorTourProps) {
             popover: {
               title: 'The node palette',
               description:
-                'Tap a node to add it to the canvas. They\'re ordered by pipeline stage: <b>Input → Structure & Enrich → Organize → Expand → Output</b>.',
+                'Tap a node to add it to the canvas. They\'re ordered by pipeline stage: <b>Input → Structure & Enrich → Organize → Expand → Output</b>. Tap Next to see them in action — we\'ll close this menu for you.',
               side: 'right',
               align: 'start',
+              // close the drawer so the canvas step below is actually visible
+              onNextClick: (_el, _step, ctx) => {
+                setPaletteOpen(false)
+                setTimeout(() => ctx.driver.moveNext(), 400)
+              },
+              onPrevClick: (_el, _step, ctx) => ctx.driver.movePrevious(),
             },
           }]),
       {
@@ -126,10 +132,17 @@ export function EditorTour({ onOpenPalette }: EditorTourProps) {
           title: 'The canvas',
           description:
             demo
-              ? 'This is your sample workflow: <b>Input → Format → Output</b>. The animated lines are connections — data flows from left to right. Drag nodes to rearrange, pinch or scroll to zoom.'
+              ? 'This is your sample workflow: <b>Input → Format → Output</b>. The animated lines are connections — data flows through them. Drag nodes to rearrange, pinch or scroll to zoom.'
               : 'Your nodes appear here. Drag them around to rearrange, pinch or scroll to zoom.',
           side: 'top',
           align: 'center',
+          // mobile: Back should bring the palette drawer back up
+          onPrevClick: isDesktop
+            ? undefined
+            : (_el, _step, ctx) => {
+                setPaletteOpen(true)
+                setTimeout(() => ctx.driver.movePrevious(), 350)
+              },
         },
       },
       ...(inputSel
@@ -242,7 +255,7 @@ export function EditorTour({ onOpenPalette }: EditorTourProps) {
       driverRef.current?.destroy()
       driverRef.current = null
     }
-  }, [activeTour, endTour, markSeen, onOpenPalette])
+  }, [activeTour, endTour, markSeen, setPaletteOpen])
 
   return null
 }
