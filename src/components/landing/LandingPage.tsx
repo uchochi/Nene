@@ -1,5 +1,8 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import { ArrowRight, Workflow, Bot, FileJson, Zap, Database, Languages, Tags, Sparkles, ChevronRight } from 'lucide-react'
+import {
+  ArrowRight, Workflow, Bot, FileJson, Zap, Languages, Tags,
+  Sparkles, ChevronRight, Image as ImageIcon, Mic, GraduationCap, ShieldCheck, Coins,
+} from 'lucide-react'
 
 function useReveal() {
   const ref = useRef<HTMLDivElement>(null)
@@ -22,26 +25,62 @@ function Section({ children, className = '' }: { children: ReactNode; className?
 }
 
 const features = [
-  { icon: Database, color: 'node-input', title: 'Import Any Data', desc: 'Paste raw text, JSON, or CSV. The AI auto-analyzes and structures your content into training-ready rows.' },
-  { icon: Workflow, color: 'node-format', title: 'Visual Workflow Editor', desc: 'Drag-and-drop nodes to build data pipelines — input, format, tag, translate, AI-transform, and output.' },
-  { icon: Bot, color: 'node-ai', title: 'AI-Powered Transform', desc: 'Generate Chain-of-Thought explanations, categorize entries, and enrich metadata using any OpenRouter model.' },
-  { icon: Languages, color: 'node-translate', title: 'Multi-Language', desc: 'Translate datasets across languages with configurable tone, formality, and regional variants.' },
-  { icon: Tags, color: 'node-tag', title: 'Smart Tagging', desc: 'Auto-extract language, region, and domain tags — or define your own custom tagging schema.' },
-  { icon: FileJson, color: 'node-output', title: 'JSONL Export', desc: 'Download industry-standard JSONL files ready for fine-tuning GPT, LLaMA, Mistral, and other LLMs.' },
+  {
+    icon: ImageIcon, color: '#4CAF50', title: 'Multimodal Import',
+    desc: 'Paste text, JSON, or CSV — or upload images, audio, video, and PDFs. Every format becomes structured training data.',
+  },
+  {
+    icon: Workflow, color: '#2196F3', title: 'Visual Workflow Editor',
+    desc: 'Drag-and-drop 7 node types onto the canvas. The palette is ordered by pipeline stage so you always know what comes next.',
+  },
+  {
+    icon: Mic, color: '#00BCD4', title: 'Multimodal AI Processing',
+    desc: 'OCR text extraction, audio transcription, image captioning, and structured Vision AI analysis — built right into the Input node.',
+  },
+  {
+    icon: Bot, color: '#E91E63', title: 'AI-Powered Transform',
+    desc: 'Content-agnostic analysis that adapts to whatever you feed it — summaries, key topics, sentiment, and Chain-of-Thought explanations.',
+  },
+  {
+    icon: Languages, color: '#00BCD4', title: 'Multi-Language',
+    desc: 'Translate datasets across 100+ languages. Puns and wordplay get adapted natively — not translated literally.',
+  },
+  {
+    icon: Tags, color: '#FF9800', title: 'Smart Tagging',
+    desc: 'AI-generated tags tuned to your content, or a fast keyword engine across 14 categories. Define your own categories too.',
+  },
+  {
+    icon: FileJson, color: '#F44336', title: 'Flexible Export',
+    desc: 'Download JSONL, JSON, or CSV — ready for fine-tuning GPT, LLaMA, Mistral, and other LLMs, or load straight into Hugging Face.',
+  },
+  {
+    icon: GraduationCap, color: '#ff6421', title: 'Guided Onboarding',
+    desc: 'Interactive product tours walk you through nodes, connections, and your first run — with a live sample workflow on the canvas.',
+  },
+  {
+    icon: ShieldCheck, color: '#4CAF50', title: 'Secure by Design',
+    desc: 'Uploaded media is session-scoped and auto-deleted when you leave. Your data is isolated with row-level security.',
+  },
 ]
 
 const steps = [
-  { num: '01', title: 'Import', desc: 'Paste or upload your raw dataset — text, JSON, or CSV.', color: '#4CAF50' },
-  { num: '02', title: 'Build', desc: 'Connect nodes on a visual canvas to define your pipeline.', color: '#2196F3' },
-  { num: '03', title: 'Transform', desc: 'AI enriches every row with tags, translations, and reasoning.', color: '#E91E63' },
-  { num: '04', title: 'Export', desc: 'Download a clean JSONL file ready for model fine-tuning.', color: '#F44336' },
+  { num: '01', title: 'Import', desc: 'Paste text or upload images, audio, video, and PDFs — OCR and transcription run automatically.', color: '#4CAF50' },
+  { num: '02', title: 'Build', desc: 'Connect nodes on a visual canvas. The palette guides you stage by stage: structure, enrich, organize, expand.', color: '#2196F3' },
+  { num: '03', title: 'Transform', desc: 'AI enriches every row — analysis, tags, groups, and translations with native-feeling wordplay.', color: '#E91E63' },
+  { num: '04', title: 'Export', desc: 'Download a clean JSONL, JSON, or CSV file ready for model fine-tuning.', color: '#F44336' },
 ]
 
 const stats = [
-  { value: '7+', label: 'Node Types' },
-  { value: '∞', label: 'Pipeline Combos' },
+  { value: '7', label: 'Node Types' },
+  { value: '4+', label: 'Media Formats' },
   { value: '100+', label: 'Languages' },
-  { value: 'JSONL', label: 'Export Format' },
+  { value: '1M', label: 'Tokens per $10' },
+]
+
+const plans = [
+  { name: 'Starter', tokens: '1M', credits: '10,000 credits', price: '$10' },
+  { name: 'Pro', tokens: '2M', credits: '20,000 credits', price: '$20', highlight: true },
+  { name: 'Business', tokens: '4M', credits: '40,000 credits', price: '$40' },
 ]
 
 export default function LandingPage() {
@@ -76,19 +115,20 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto text-center relative z-10">
           <div className="inline-flex items-center gap-2 mb-6 px-4 py-1.5 rounded-full border border-n8n-dark-4 bg-n8n-dark-2/60 text-xs text-n8n-gray-light reveal-up">
             <Sparkles size={13} className="text-n8n-orange" />
-            AI-Powered Dataset Engineering
+            Multimodal AI Dataset Engineering
           </div>
 
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1] mb-6 reveal-up" style={{ animationDelay: '.1s' }}>
-            Build LLM Training Data{' '}
+            Turn Text, Images & Audio Into{' '}
             <span className="bg-gradient-to-r from-n8n-orange via-n8n-red to-n8n-orange bg-clip-text text-transparent">
-              Without Writing Code
+              LLM Training Data
             </span>
           </h1>
 
           <p className="text-base md:text-lg text-n8n-gray-light max-w-2xl mx-auto mb-10 reveal-up" style={{ animationDelay: '.2s' }}>
-            A visual workflow editor inside Telegram. Import raw data, connect AI-powered nodes,
-            and export production-ready JSONL datasets for fine-tuning any model.
+            A visual workflow editor inside Telegram. Import text, JSON, CSV — or images, audio,
+            video, and PDFs — connect AI-powered nodes, and export production-ready datasets
+            for fine-tuning any model.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 reveal-up" style={{ animationDelay: '.3s' }}>
@@ -119,11 +159,11 @@ export default function LandingPage() {
               <span className="ml-3 text-xs text-n8n-gray font-mono">ooguy — workflow canvas</span>
             </div>
             <div className="flex items-center justify-between gap-3 overflow-x-auto pb-2">
-              <FakeNode icon="📥" label="Input" sub="JSON / CSV" color="#4CAF50" delay={0} />
+              <FakeNode icon="📥" label="Input" sub="Text · Media · PDF" color="#4CAF50" delay={0} />
               <Connector delay={0.6} />
-              <FakeNode icon="🤖" label="AI Transform" sub="CoT Generation" color="#E91E63" delay={0.15} />
+              <FakeNode icon="🔧" label="Format" sub="Structure" color="#2196F3" delay={0.15} />
               <Connector delay={0.75} />
-              <FakeNode icon="🔧" label="Format" sub="JSON Wrapper" color="#2196F3" delay={0.3} />
+              <FakeNode icon="🤖" label="AI Transform" sub="Analysis" color="#E91E63" delay={0.3} />
               <Connector delay={0.9} />
               <FakeNode icon="🏷️" label="Tag" sub="Auto-Extract" color="#FF9800" delay={0.45} />
               <Connector delay={1.05} />
@@ -155,7 +195,8 @@ export default function LandingPage() {
               <span className="text-xs text-n8n-orange uppercase tracking-widest font-semibold">Features</span>
               <h2 className="text-3xl md:text-4xl font-bold mt-3 mb-4">Everything You Need to Shape Training Data</h2>
               <p className="text-n8n-gray-light max-w-xl mx-auto">
-                From raw input to fine-tuning-ready JSONL — every step runs inside a visual workflow powered by AI.
+                From raw text and media files to fine-tuning-ready datasets — every step runs
+                inside a visual workflow powered by AI.
               </p>
             </div>
           </Section>
@@ -164,8 +205,11 @@ export default function LandingPage() {
             {features.map((f, i) => (
               <Section key={i}>
                 <div className="feature-card group relative p-6 rounded-2xl border border-n8n-dark-4 bg-n8n-dark-2/60 hover:border-n8n-dark-5 transition-all duration-300 h-full">
-                  <div className={`w-11 h-11 rounded-xl bg-${f.color}/10 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110`}>
-                    <f.icon size={22} className={`text-${f.color}`} />
+                  <div
+                    className="w-11 h-11 rounded-xl flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110"
+                    style={{ backgroundColor: `${f.color}1a` }}
+                  >
+                    <f.icon size={22} style={{ color: f.color }} />
                   </div>
                   <h3 className="text-base font-semibold mb-2">{f.title}</h3>
                   <p className="text-sm text-n8n-gray-light leading-relaxed">{f.desc}</p>
@@ -218,7 +262,8 @@ export default function LandingPage() {
               <span className="text-xs text-n8n-orange uppercase tracking-widest font-semibold">Example Output</span>
               <h2 className="text-3xl md:text-4xl font-bold mt-3 mb-4">Rich, Structured, Model-Ready</h2>
               <p className="text-n8n-gray-light max-w-lg mx-auto">
-                Every row is enriched with metadata, cultural context, and Chain-of-Thought explanations.
+                Upload a meme, a voice note, or a scanned doc — get back enriched rows with
+                extracted text, descriptions, topics, and sentiment.
               </p>
             </div>
           </Section>
@@ -227,18 +272,19 @@ export default function LandingPage() {
             <div className="code-block rounded-2xl border border-n8n-dark-4 bg-n8n-dark-2/80 overflow-hidden">
               <div className="flex items-center gap-2 px-5 py-3 border-b border-n8n-dark-4 bg-n8n-dark-3/60">
                 <Zap size={14} className="text-n8n-orange" />
-                <span className="text-xs text-n8n-gray font-mono">humor_dataset.jsonl</span>
+                <span className="text-xs text-n8n-gray font-mono">meme_dataset.jsonl</span>
               </div>
               <pre className="p-5 text-xs md:text-sm leading-relaxed overflow-x-auto">
                 <code>
                   <span className="text-node-ai">{'{'}</span>{'\n'}
-                  {'  '}<span className="text-n8n-orange">"setup"</span>: <span className="text-node-input">"¿Qué hace una abeja en el gimnasio?"</span>,{'\n'}
-                  {'  '}<span className="text-n8n-orange">"punchline"</span>: <span className="text-node-input">"¡Zum-ba!"</span>,{'\n'}
-                  {'  '}<span className="text-n8n-orange">"language"</span>: <span className="text-node-input">"es"</span>,{'\n'}
-                  {'  '}<span className="text-n8n-orange">"region"</span>: <span className="text-node-input">"Latin America"</span>,{'\n'}
-                  {'  '}<span className="text-n8n-orange">"humor_mechanics"</span>: [<span className="text-node-input">"pun"</span>, <span className="text-node-input">"phonetic_ambiguity"</span>],{'\n'}
-                  {'  '}<span className="text-n8n-orange">"cultural_context"</span>: <span className="text-node-input">"Zumba is a dance fitness program"</span>,{'\n'}
-                  {'  '}<span className="text-n8n-orange">"explanation_for_ai"</span>: <span className="text-node-input">"The humor arises from the double meaning of 'zumba'..."</span>{'\n'}
+                  {'  '}<span className="text-n8n-orange">"media_filename"</span>: <span className="text-node-input">"this_is_fine.png"</span>,{'\n'}
+                  {'  '}<span className="text-n8n-orange">"extracted_text"</span>: <span className="text-node-input">"This is fine."</span>,{'\n'}
+                  {'  '}<span className="text-n8n-orange">"image_description"</span>: <span className="text-node-input">"A cartoon dog sits calmly in a room engulfed in flames"</span>,{'\n'}
+                  {'  '}<span className="text-n8n-orange">"summary"</span>: <span className="text-node-input">"Dark humor meme about stoic acceptance of chaos"</span>,{'\n'}
+                  {'  '}<span className="text-n8n-orange">"key_topics"</span>: [<span className="text-node-input">"dark humor"</span>, <span className="text-node-input">"resilience"</span>, <span className="text-node-input">"internet culture"</span>],{'\n'}
+                  {'  '}<span className="text-n8n-orange">"sentiment"</span>: <span className="text-node-input">"ironic"</span>,{'\n'}
+                  {'  '}<span className="text-n8n-orange">"tags"</span>: [<span className="text-node-input">"humor"</span>, <span className="text-node-input">"meme"</span>, <span className="text-node-input">"irony"</span>],{'\n'}
+                  {'  '}<span className="text-n8n-orange">"explanation_for_ai"</span>: <span className="text-node-input">"The contrast between the dog's calm demeanor and the fire creates…"</span>{'\n'}
                   <span className="text-node-ai">{'}'}</span>
                 </code>
               </pre>
@@ -247,7 +293,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── CREDIT SYSTEM ─── */}
+      {/* ─── PRICING ─── */}
       <section className="py-20 md:py-28 px-6 bg-n8n-dark-2/30">
         <div className="max-w-4xl mx-auto">
           <Section>
@@ -255,23 +301,41 @@ export default function LandingPage() {
               <div className="absolute top-0 right-0 w-64 h-64 bg-n8n-orange/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
               <div className="relative z-10 text-center">
                 <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full border border-n8n-orange/30 bg-n8n-orange/10 text-xs text-n8n-orange font-semibold">
-                  <Zap size={13} />
-                  Credit System
+                  <Coins size={13} />
+                  Token-Based Pricing
                 </div>
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">Pay As You Go, Scale When Ready</h2>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4">Pay Only for What You Process</h2>
                 <p className="text-n8n-gray-light max-w-lg mx-auto mb-8">
-                  10,000 credits = 1M AI tokens. You're billed only for the tokens each workflow actually consumes — no wasted credits.
-                  Use coupon codes for discounts. Secure payments via Paystack.
+                  <span className="text-white font-semibold">10,000 credits = 1M AI tokens.</span>{' '}
+                  Every workflow reports its exact token usage — you're billed for what each run
+                  actually consumes, never a flat fee. Short workflows cost less.
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md mx-auto">
-                  <div className="bg-n8n-dark-4/60 rounded-xl p-4 border border-n8n-dark-5">
-                    <div className="text-xl font-bold text-n8n-orange mb-1">$10</div>
-                    <div className="text-xs text-n8n-gray">Base Top-Up</div>
-                  </div>
-                  <div className="bg-n8n-dark-4/60 rounded-xl p-4 border border-n8n-dark-5">
-                    <div className="text-xl font-bold text-n8n-orange mb-1">1M</div>
-                    <div className="text-xs text-n8n-gray">AI Tokens (10,000 credits)</div>
-                  </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto mb-8">
+                  {plans.map((p) => (
+                    <div
+                      key={p.name}
+                      className={`rounded-xl p-5 border text-center ${p.highlight
+                        ? 'border-n8n-orange/50 bg-n8n-orange/5'
+                        : 'border-n8n-dark-5 bg-n8n-dark-4/60'}`}
+                    >
+                      <div className="text-xs text-n8n-gray-light uppercase tracking-wider mb-2">{p.name}</div>
+                      <div className="text-2xl font-bold text-n8n-orange">{p.tokens}</div>
+                      <div className="text-[11px] text-n8n-gray mt-0.5">{p.credits}</div>
+                      <div className="text-sm font-semibold text-white mt-3">{p.price}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-xs text-n8n-gray-light">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-n8n-dark-4/60 border border-n8n-dark-5">
+                    <Sparkles size={12} className="text-n8n-orange" />
+                    75% off your first purchase with coupon <b className="text-white">new2026set</b>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-n8n-dark-4/60 border border-n8n-dark-5">
+                    <ShieldCheck size={12} className="text-n8n-orange" />
+                    Secure payments via Paystack
+                  </span>
                 </div>
               </div>
             </div>
@@ -290,7 +354,8 @@ export default function LandingPage() {
               Ready to Build Your Dataset?
             </h2>
             <p className="text-n8n-gray-light text-base md:text-lg max-w-xl mx-auto mb-10 reveal-up" style={{ animationDelay: '.2s' }}>
-              Open ooguy in Telegram and start building production-quality training data in minutes.
+              Open ooguy in Telegram — built-in tours walk you from blank canvas to your first
+              exported dataset in minutes.
             </p>
             <a
               href="https://t.me/ooguy_bot"
