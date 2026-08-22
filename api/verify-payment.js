@@ -6,11 +6,11 @@ export async function OPTIONS() {
 }
 
 export async function POST(req) {
-  const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY
+  const flwSecretKey = process.env.FLUTTERWAVE_SECRET_KEY
   const supabaseUrl = process.env.VITE_SUPABASE_URL
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-  if (!paystackSecretKey || !supabaseUrl || !supabaseKey) {
+  if (!flwSecretKey || !supabaseUrl || !supabaseKey) {
     return new Response(JSON.stringify({ error: 'Server misconfigured' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders() },
@@ -19,24 +19,24 @@ export async function POST(req) {
 
   try {
     const body = await req.json()
-    const { reference, userId, planId, credits, amount, currency } = body
+    const { transactionId, txRef, userId, planId, credits, amount, currency } = body
 
-    if (!reference || !userId || !planId || !credits || !amount || !currency) {
+    if (!transactionId || !txRef || !userId || !planId || !credits || !amount || !currency) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json', ...corsHeaders() },
       })
     }
 
-    /* verify with Paystack */
+    /* verify with FlutterWave */
     const verifyRes = await fetch(
-      `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
-      { headers: { Authorization: `Bearer ${paystackSecretKey}` } },
+      `https://api.flutterwave.com/v3/transactions/${encodeURIComponent(transactionId)}/verify`,
+      { headers: { Authorization: `Bearer ${flwSecretKey}` } },
     )
 
     if (!verifyRes.ok) {
       const errText = await verifyRes.text()
-      return new Response(JSON.stringify({ error: `Paystack API error: ${errText}` }), {
+      return new Response(JSON.stringify({ error: `FlutterWave API error: ${errText}` }), {
         status: 502,
         headers: { 'Content-Type': 'application/json', ...corsHeaders() },
       })
@@ -44,16 +44,31 @@ export async function POST(req) {
 
     const verifyData = await verifyRes.json()
 
-    if (!verifyData.status || verifyData.data.status !== 'success') {
-      return new Response(JSON.stringify({ error: 'Payment not verified', paystack: verifyData }), {
+    if (verifyData.status !== 'success' || verifyData.data.status !== 'successful') {
+      return new Response(JSON.stringify({ error: 'Payment not verified', flutterwave: verifyData }), {
         status: 402,
         headers: { 'Content-Type': 'application/json', ...corsHeaders() },
       })
     }
 
-    /* confirm amount matches (amount is in kobo/cents — compare with Paystack) */
-    if (verifyData.data.amount !== amount) {
+    /* confirm amount + currency match — FlutterWave amounts are in MAIN units (no kobo/cents) */
+    if (Number(verifyData.data.amount) !== Number(amount)) {
       return new Response(JSON.stringify({ error: 'Amount mismatch' }), {
+        status: 409,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+      })
+    }
+
+    if (verifyData.data.currency !== currency) {
+      return new Response(JSON.stringify({ error: 'Currency mismatch' }), {
+        status: 409,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+      })
+    }
+
+    /* confirm the reference matches what we sent */
+    if (verifyData.data.tx_ref !== txRef) {
+      return new Response(JSON.stringify({ error: 'Transaction reference mismatch' }), {
         status: 409,
         headers: { 'Content-Type': 'application/json', ...corsHeaders() },
       })
@@ -65,7 +80,7 @@ export async function POST(req) {
     const { data: existing } = await supabase
       .from('credit_transactions')
       .select('id')
-      .eq('reference', reference)
+      .eq('reference', txRef)
       .maybeSingle()
 
     if (existing) {
@@ -102,7 +117,7 @@ export async function POST(req) {
 
     if (upsertError) throw upsertError
 
-    /* insert transaction record */
+    /* insert transaction record — amount_paid is FlutterWave main units */
     const { error: txnError } = await supabase
       .from('credit_transactions')
       .insert({
@@ -111,7 +126,7 @@ export async function POST(req) {
         credits_awarded: credits,
         amount_paid: amount,
         currency,
-        reference,
+        reference: txRef,
         subscription_expires_at: expiresAt,
         status: 'completed',
       })
