@@ -1,5 +1,10 @@
 const DOWNLOADER_BASE = import.meta.env.VITE_DOWNLOADER_URL || 'https://nene2u.vercel.app'
 
+/** True for structural comment lines (header/footer/separators). */
+function isCommentLine(line: string): boolean {
+  return line.trimStart().startsWith('#')
+}
+
 function encodeB64(str: string): string {
   return btoa(unescape(encodeURIComponent(str)))
 }
@@ -39,7 +44,7 @@ export function generateMediaManifest(
     version: '1.0',
     generatedAt: new Date().toISOString(),
     datasetFormat: 'jsonl',
-    entryCount: jsonlContent.split('\n').filter(l => l.trim()).length,
+    entryCount: jsonlContent.split('\n').filter(l => l.trim() && !isCommentLine(l)).length,
     media: mediaEntries.map(m => ({
       id: m.id,
       type: m.type,

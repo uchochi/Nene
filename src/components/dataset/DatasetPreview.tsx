@@ -17,6 +17,10 @@ export function DatasetPreview() {
     try {
       const parsed = JSON.parse(datasetResult)
       if (Array.isArray(parsed)) return { entries: parsed }
+      /* dataset envelope: { _dataset_meta: {...}, data: [...] } */
+      if (parsed && typeof parsed === 'object' && Array.isArray(parsed.data)) {
+        return { entries: parsed.data }
+      }
     } catch { /* not a JSON array — treat as JSONL */ }
     return validateJSONL(datasetResult)
   }, [datasetResult])

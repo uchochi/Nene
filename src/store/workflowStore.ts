@@ -10,6 +10,17 @@ import { supabase } from '../lib/supabase'
 import { encodeDownloadData } from '../utils/downloadLink'
 import type { MediaAsset } from '../types/media'
 import { deleteSessionMedia } from '../utils/mediaUpload'
+import {
+  generateDatasetSignature,
+  computeStats,
+  signEntry,
+  buildJSONLHeader,
+  buildJSONLFooter,
+  buildJSONLSeparator,
+  buildCSVHeaderLine,
+  buildCSVFooterLine,
+  buildJSONWrapper,
+} from '../utils/datasetSignature'
 
 export type NodeType = 'input' | 'format' | 'tag' | 'group' | 'translate' | 'output' | 'ai'
 
@@ -988,14 +999,20 @@ async function callAI(item: Record<string, unknown>, cfg: AITransformNodeConfig)
 }
 
 function outputData(data: Record<string, unknown>[], cfg: OutputNodeConfig): string {
+  /* Draw one signature per dataset — consistent across the whole file */
+  const sig = generateDatasetSignature()
+  const stats = computeStats(data)
+
   switch (cfg.format) {
     case 'json':
-      return JSON.stringify(data, null, 2)
+      /* Unique dataset envelope: { _dataset_meta: {...}, data: [...] } */
+      return JSON.stringify(buildJSONWrapper(data, sig), null, 2)
     case 'csv': {
       if (data.length === 0) return ''
       const keySet = new Set<string>()
       data.forEach(item => Object.keys(item).forEach(k => keySet.add(k)))
-      const headers = Array.from(keySet)
+      /* `_dataset_sig` is always the first column */
+      const headers = ['_dataset_sig', ...Array.from(keySet)]
       const escapeCSV = (val: unknown): string => {
         const str = typeof val === 'object' && val !== null
           ? JSON.stringify(val)
@@ -1004,12 +1021,23 @@ function outputData(data: Record<string, unknown>[], cfg: OutputNodeConfig): str
           ? `"${str.replace(/"/g, '""')}"`
           : str
       }
-      const rows = data.map(item => headers.map(h => escapeCSV(item[h])).join(','))
-      return [headers.join(','), ...rows].join('\n')
+      const rows = data.map(item => [sig.id, ...headers.slice(1).map(h => escapeCSV(item[h]))].join(','))
+      return [
+        buildCSVHeaderLine(sig, stats),
+        [headers.join(','), ...rows].join('\n'),
+        buildCSVFooterLine(sig, stats),
+      ].join('\n')
     }
     case 'jsonl':
-    default:
-      return data.map(item => JSON.stringify(item)).join('\n')
+    default: {
+      /* Unique dataset structure: header block + signed entries + separators + footer */
+      const body = data.map(item => JSON.stringify(signEntry(item, sig)))
+      return [
+        buildJSONLHeader(sig, stats),
+        body.join('\n' + buildJSONLSeparator() + '\n'),
+        buildJSONLFooter(sig, stats),
+      ].join('\n')
+    }
   }
 }
 

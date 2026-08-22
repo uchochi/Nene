@@ -1,3 +1,13 @@
+import {
+  computeStats,
+  generateDatasetSignature,
+  isDatasetCommentLine,
+  buildJSONLHeader,
+  buildJSONLFooter,
+  buildJSONLSeparator,
+  signEntry,
+} from './datasetSignature'
+
 export interface JSONLEntry {
   id: string
   language_code: string
@@ -43,7 +53,8 @@ export interface JSONLEntry {
 export function validateJSONL(content: string): { valid: boolean; errors: string[]; entries: JSONLEntry[] } {
   const errors: string[] = []
   const entries: JSONLEntry[] = []
-  const lines = content.split('\n').filter(l => l.trim())
+  /* Skip blank lines and structural comment lines (header/footer/separators) */
+  const lines = content.split('\n').filter(l => l.trim() && !isDatasetCommentLine(l))
 
   for (let i = 0; i < lines.length; i++) {
     try {
@@ -61,8 +72,20 @@ export function validateJSONL(content: string): { valid: boolean; errors: string
   return { valid: errors.length === 0, errors, entries }
 }
 
+/**
+ * Renders entries in the unique dataset structure:
+ * signature header block, `_dataset_sig`-stamped entries separated by
+ * comment rules, and a statistics footer block.
+ */
 export function formatAsJSONL(entries: JSONLEntry[]): string {
-  return entries.map(e => JSON.stringify(e)).join('\n')
+  const sig = generateDatasetSignature()
+  const stats = computeStats(entries as unknown as Array<Record<string, unknown>>)
+  const body = entries.map(e => JSON.stringify(signEntry(e as Record<string, unknown>, sig)))
+  return [
+    buildJSONLHeader(sig, stats),
+    body.join('\n' + buildJSONLSeparator() + '\n'),
+    buildJSONLFooter(sig, stats),
+  ].join('\n')
 }
 
 export function downloadJSONL(content: string, filename: string): void {
@@ -117,7 +140,7 @@ export function downloadJSONL(content: string, filename: string): void {
 }
 
 export function countEntries(content: string): number {
-  return content.split('\n').filter(l => l.trim()).length
+  return content.split('\n').filter(l => l.trim() && !isDatasetCommentLine(l)).length
 }
 
 export function getStatistics(entries: JSONLEntry[]): Record<string, unknown> {
