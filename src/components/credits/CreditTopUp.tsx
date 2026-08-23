@@ -4,59 +4,16 @@ import { useCreditStore } from '../../store/creditStore'
 import { useAuthStore } from '../../store/authStore'
 import {
   PLANS, getPlanPrice, fetchExchangeRates,
-  paystackAmount, formatCurrency, planTokenLabel, type Plan,
+  paystackAmount, flutterwaveAmount, formatCurrency, planTokenLabel, type Plan,
 } from '../../utils/credits'
+import { loadFlutterwave, makeTxRef } from '../../utils/flutterwave'
+import { PAYMENT_COUNTRIES, type PaymentCountry, type PaymentMethod } from '../../data/paymentCountries'
 import { X, Check, ChevronRight, Zap, Loader2, AlertCircle, ArrowLeft, Tag } from 'lucide-react'
 
 /* ------------------------------------------------------- */
-/*  Countries — ALL pay in NGN                             */
-/*  Paystack merchant is NG-registered: only NGN (and      */
-/*  USD if activated) is supported. Foreign cards are      */
-/*  charged NGN and their issuer converts via FX.          */
+/*  Countries come from src/data/paymentCountries.ts       */
+/*  NG → Paystack (NGN). All others → FlutterWave.         */
 /* ------------------------------------------------------- */
-
-interface Country {
-  code: string
-  name: string
-  currency: string
-  flag: string
-}
-
-const countries: Country[] = [
-  { code: 'NG', name: 'Nigeria',               currency: 'NGN', flag: '🇳🇬' },
-  { code: 'KE', name: 'Kenya',                 currency: 'NGN', flag: '🇰🇪' },
-  { code: 'GH', name: 'Ghana',                 currency: 'NGN', flag: '🇬🇭' },
-  { code: 'ZA', name: 'South Africa',          currency: 'NGN', flag: '🇿🇦' },
-  { code: 'EG', name: 'Egypt',                 currency: 'NGN', flag: '🇪🇬' },
-  { code: 'MA', name: 'Morocco',               currency: 'NGN', flag: '🇲🇦' },
-  { code: 'US', name: 'United States',         currency: 'NGN', flag: '🇺🇸' },
-  { code: 'GB', name: 'United Kingdom',        currency: 'NGN', flag: '🇬🇧' },
-  { code: 'FR', name: 'France',                currency: 'NGN', flag: '🇫🇷' },
-  { code: 'DE', name: 'Germany',               currency: 'NGN', flag: '🇩🇪' },
-  { code: 'IT', name: 'Italy',                 currency: 'NGN', flag: '🇮🇹' },
-  { code: 'ES', name: 'Spain',                 currency: 'NGN', flag: '🇪🇸' },
-  { code: 'NL', name: 'Netherlands',           currency: 'NGN', flag: '🇳🇱' },
-  { code: 'CA', name: 'Canada',                currency: 'NGN', flag: '🇨🇦' },
-  { code: 'MX', name: 'Mexico',                currency: 'NGN', flag: '🇲🇽' },
-  { code: 'BR', name: 'Brazil',                currency: 'NGN', flag: '🇧🇷' },
-  { code: 'IN', name: 'India',                 currency: 'NGN', flag: '🇮🇳' },
-  { code: 'JP', name: 'Japan',                 currency: 'NGN', flag: '🇯🇵' },
-  { code: 'SG', name: 'Singapore',             currency: 'NGN', flag: '🇸🇬' },
-  { code: 'AE', name: 'United Arab Emirates',  currency: 'NGN', flag: '🇦🇪' },
-]
-
-type PaymentChannel = 'card' | 'bank_transfer'
-
-function getPaymentOptions(countryCode: string) {
-  const card = { channel: 'card' as const, label: 'Pay with Card', description: 'Visa, Mastercard', icon: '💳' }
-  if (countryCode === 'NG') {
-    return [
-      card,
-      { channel: 'bank_transfer' as const, label: 'Pay with Bank Transfer', description: 'Instant confirmation', icon: '🏦' },
-    ]
-  }
-  return [card]
-}
 
 /* ------------------------------------------------------- */
 /*  Coupon codes                                           */
@@ -87,7 +44,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
   /* steps: plan → country → payment */
   const [step, setStep] = useState<0 | 1 | 2>(0)
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
-  const [selectedCountry, setSelectedCountry] = useState<Country | null>(null)
+  const [selectedCountry, setSelectedCountry] = useState<PaymentCountry | null>(null)
   const [rates, setRates] = useState<Record<string, number>>({})
   const [ratesLoading, setRatesLoading] = useState(false)
   const [status, setStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle')
@@ -144,24 +101,28 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
     setCouponError('')
   }, [couponCode, isFirst])
 
-  /* compute price in a given currency */
-  const priceInCurrency = useCallback((plan: Plan, currency: string): number => {
-    const rate = rates[currency] || 1
+  /* compute price in a given currency — provider decides the unit */
+  const priceInCurrency = useCallback((plan: Plan, country: PaymentCountry): number => {
+    const rate = rates[country.currency] || 1
     const usdCents = getPlanPrice(plan, isFirst)
     const discountedCents = hasDiscount ? Math.round(usdCents * (1 - effectiveDiscount)) : usdCents
-    return Math.round(paystackAmount(discountedCents, rate) / 100)
+    return country.provider === 'paystack'
+      ? Math.round(paystackAmount(discountedCents, rate) / 100)
+      : flutterwaveAmount(discountedCents, rate)
   }, [rates, isFirst, hasDiscount, effectiveDiscount])
 
   /* format price for display */
-  const formatPrice = useCallback((plan: Plan, currency: string): string => {
-    return formatCurrency(priceInCurrency(plan, currency), currency)
+  const formatPrice = useCallback((plan: Plan, country: PaymentCountry): string => {
+    return formatCurrency(priceInCurrency(plan, country), country.currency)
   }, [priceInCurrency])
 
   /* original (non-discounted) price */
-  const originalPrice = useCallback((plan: Plan, currency: string): string => {
-    const rate = rates[currency] || 1
+  const originalPrice = useCallback((plan: Plan, country: PaymentCountry): string => {
+    const rate = rates[country.currency] || 1
     const usdCents = getPlanPrice(plan, isFirst)
-    return formatCurrency(Math.round(paystackAmount(usdCents, rate) / 100), currency)
+    return country.provider === 'paystack'
+      ? formatCurrency(Math.round(paystackAmount(usdCents, rate) / 100), country.currency)
+      : formatCurrency(flutterwaveAmount(usdCents, rate), country.currency)
   }, [rates, isFirst])
 
   /* step 0 — select plan */
@@ -171,108 +132,198 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
   }, [])
 
   /* step 1 — select country */
-  const handleSelectCountry = useCallback((country: Country) => {
+  const handleSelectCountry = useCallback((country: PaymentCountry) => {
     setSelectedCountry(country)
     setStep(2)
   }, [])
 
-  /* step 2 — pay */
-  const handlePayment = useCallback(async (channel: PaymentChannel) => {
+  /* Paystack flow — NG only, amounts in kobo */
+  const payWithPaystack = useCallback(async (method: PaymentMethod, amount: number, currency: string) => {
+    const paystack = paystackRef.current ?? new PaystackPop()
+    paystackRef.current = paystack
+
+    const publicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_xxxxxxxxxxxx'
+
+    await paystack.checkout({
+      key: publicKey,
+      email: user!.email!,
+      amount,
+      currency,
+      channels: [method.key as 'card' | 'bank_transfer'],
+      metadata: {
+        plan_id: selectedPlan!.id,
+        credits: selectedPlan!.credits,
+        is_first_purchase: isFirst,
+        coupon_code: appliedCoupon ? couponCode.trim().toLowerCase() : null,
+        custom_fields: [
+          { display_name: 'Plan', variable_name: 'plan_id', value: selectedPlan!.id },
+          { display_name: 'Credits', variable_name: 'credits', value: String(selectedPlan!.credits) },
+        ],
+      },
+
+      onSuccess: async (response: { reference: string }) => {
+        if (!processingRef.current) return
+        try {
+          const verifyRes = await fetch('/api/verify-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              provider: 'paystack',
+              reference: response.reference,
+              userId: user!.id,
+              planId: selectedPlan!.id,
+              credits: selectedPlan!.credits,
+              amount,
+              currency,
+            }),
+          })
+
+          const verifyData = await verifyRes.json()
+
+          if (!verifyData.success) {
+            throw new Error(verifyData.error || 'Verification failed')
+          }
+
+          await syncWithServer(user!.id)
+
+          if (processingRef.current) setStatus('success')
+        } catch (err) {
+          setStatus('error')
+          const msg = err instanceof Error ? err.message : 'Verification failed'
+          setErrorMsg(msg + ' — Reference: ' + response.reference)
+        } finally {
+          processingRef.current = false
+        }
+      },
+
+      onClose: () => {
+        if (processingRef.current) {
+          processingRef.current = false
+          setStatus('idle')
+        }
+      },
+
+      onError: (err: { message: string }) => {
+        if (processingRef.current) {
+          processingRef.current = false
+          setStatus('error')
+          setErrorMsg(err.message || 'Transaction could not be loaded.')
+        }
+      },
+
+      onCancel: () => {
+        processingRef.current = false
+        setStatus('idle')
+      },
+    })
+  }, [user, selectedPlan, isFirst, appliedCoupon, couponCode, syncWithServer])
+
+  /* FlutterWave flow — all non-NG countries, amounts in main units */
+  const payWithFlutterwave = useCallback(async (method: PaymentMethod, amount: number, currency: string) => {
+    const txRef = makeTxRef()
+
+    const openCheckout = await loadFlutterwave()
+
+    const publicKey = import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY || 'FLWPUBK_TEST-xxxxxxxxxxxxxxxxxxxx-X'
+
+    openCheckout({
+      public_key: publicKey,
+      tx_ref: txRef,
+      amount,
+      currency,
+      /* restrict the modal to the chosen method; enforce so the
+         dashboard's payment-options override cannot widen it */
+      payment_options: method.key,
+      enforce_payment_options: true,
+      customer: {
+        email: user!.email!,
+        name: (user!.user_metadata?.full_name as string) || (user!.user_metadata?.first_name as string) || undefined,
+      },
+      meta: {
+        plan_id: selectedPlan!.id,
+        credits: selectedPlan!.credits,
+        is_first_purchase: isFirst,
+        coupon_code: appliedCoupon ? couponCode.trim().toLowerCase() : null,
+      },
+      customizations: {
+        title: 'Buy Credits',
+        description: `${selectedPlan!.label} — ${selectedPlan!.credits.toLocaleString()} credits`,
+      },
+
+      callback: async (response: { transaction_id?: string | number; tx_ref?: string }) => {
+        if (!processingRef.current) return
+        try {
+          const verifyRes = await fetch('/api/verify-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              provider: 'flutterwave',
+              transactionId: response.transaction_id,
+              txRef: response.tx_ref || txRef,
+              userId: user!.id,
+              planId: selectedPlan!.id,
+              credits: selectedPlan!.credits,
+              amount,
+              currency,
+            }),
+          })
+
+          const verifyData = await verifyRes.json()
+
+          if (!verifyData.success) {
+            throw new Error(verifyData.error || 'Verification failed')
+          }
+
+          await syncWithServer(user!.id)
+
+          if (processingRef.current) setStatus('success')
+        } catch (err) {
+          setStatus('error')
+          const msg = err instanceof Error ? err.message : 'Verification failed'
+          setErrorMsg(`${msg} — Reference: ${response.transaction_id ?? txRef}`)
+        } finally {
+          processingRef.current = false
+        }
+      },
+
+      onclose: () => {
+        /* fires after callback too — only reset when still mid-processing */
+        if (processingRef.current) {
+          processingRef.current = false
+          setStatus('idle')
+        }
+      },
+    })
+  }, [user, selectedPlan, isFirst, appliedCoupon, couponCode, syncWithServer])
+
+  /* step 2 — pay (branch by provider) */
+  const handlePayment = useCallback(async (method: PaymentMethod) => {
     if (!selectedPlan || !selectedCountry || !user?.email) return
 
     const currency = selectedCountry.currency
     const rate = rates[currency] || 1
     const usdCents = getPlanPrice(selectedPlan, isFirst)
     const discountedCents = hasDiscount ? Math.round(usdCents * (1 - effectiveDiscount)) : usdCents
-    const amount = paystackAmount(discountedCents, rate)
+    const amount = selectedCountry.provider === 'paystack'
+      ? paystackAmount(discountedCents, rate)
+      : flutterwaveAmount(discountedCents, rate)
 
     setStatus('processing')
     setErrorMsg('')
     processingRef.current = true
 
-    const paystack = paystackRef.current ?? new PaystackPop()
-    paystackRef.current = paystack
-
-    const publicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_xxxxxxxxxxxx'
-
     try {
-      await paystack.checkout({
-        key: publicKey,
-        email: user.email,
-        amount,
-        currency,
-        channels: [channel],
-        metadata: {
-          plan_id: selectedPlan.id,
-          credits: selectedPlan.credits,
-          is_first_purchase: isFirst,
-          coupon_code: appliedCoupon ? couponCode.trim().toLowerCase() : null,
-          custom_fields: [
-            { display_name: 'Plan', variable_name: 'plan_id', value: selectedPlan.id },
-            { display_name: 'Credits', variable_name: 'credits', value: String(selectedPlan.credits) },
-          ],
-        },
-
-        onSuccess: async (response: { reference: string }) => {
-          if (!processingRef.current) return
-          try {
-            const verifyRes = await fetch('/api/verify-payment', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                reference: response.reference,
-                userId: user.id,
-                planId: selectedPlan.id,
-                credits: selectedPlan.credits,
-                amount,
-                currency,
-              }),
-            })
-
-            const verifyData = await verifyRes.json()
-
-            if (!verifyData.success) {
-              throw new Error(verifyData.error || 'Verification failed')
-            }
-
-            await syncWithServer(user.id)
-
-            if (processingRef.current) setStatus('success')
-          } catch (err) {
-            setStatus('error')
-            const msg = err instanceof Error ? err.message : 'Verification failed'
-            setErrorMsg(msg + ' — Reference: ' + response.reference)
-          } finally {
-            processingRef.current = false
-          }
-        },
-
-        onClose: () => {
-          if (processingRef.current) {
-            processingRef.current = false
-            setStatus('idle')
-          }
-        },
-
-        onError: (err: { message: string }) => {
-          if (processingRef.current) {
-            processingRef.current = false
-            setStatus('error')
-            setErrorMsg(err.message || 'Transaction could not be loaded.')
-          }
-        },
-
-        onCancel: () => {
-          processingRef.current = false
-          setStatus('idle')
-        },
-      })
+      if (selectedCountry.provider === 'paystack') {
+        await payWithPaystack(method, amount, currency)
+      } else {
+        await payWithFlutterwave(method, amount, currency)
+      }
     } catch (err) {
       processingRef.current = false
       setStatus('error')
       setErrorMsg(err instanceof Error ? err.message : 'An unexpected error occurred.')
     }
-  }, [selectedPlan, selectedCountry, user, rates, isFirst, hasDiscount, effectiveDiscount, appliedCoupon, couponCode, syncWithServer])
+  }, [selectedPlan, selectedCountry, user, rates, isFirst, hasDiscount, effectiveDiscount, payWithPaystack, payWithFlutterwave])
 
   /* close on success after a moment */
   useEffect(() => {
@@ -416,13 +467,13 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-white">Select your country</h2>
-                  <p className="text-sm text-n8n-gray-light mt-1">All payments are processed in Nigerian Naira (₦) — your card's bank handles conversion automatically.</p>
+                  <p className="text-sm text-n8n-gray-light mt-1">Nigeria pays in Naira via Paystack; other countries pay via FlutterWave.</p>
                 </div>
                 {ratesLoading && <Loader2 size={16} className="animate-spin text-n8n-gray-light" />}
               </div>
 
               <div className="grid grid-cols-1 gap-1.5 max-h-[320px] overflow-y-auto pr-1">
-                {countries.map(c => (
+                {PAYMENT_COUNTRIES.map(c => (
                   <button
                     key={c.code}
                     onClick={() => handleSelectCountry(c)}
@@ -452,11 +503,11 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
                   <span className="text-n8n-orange font-medium">{planTokenLabel(selectedPlan.credits)}</span>
                   {' '}for{' '}
                   <span className={`font-semibold ${hasDiscount ? 'text-green-400' : 'text-n8n-orange'}`}>
-                    {formatPrice(selectedPlan, selectedCountry.currency)}
+                    {formatPrice(selectedPlan, selectedCountry)}
                   </span>
                   {hasDiscount && (
                     <span className="text-n8n-gray line-through ml-2">
-                      {originalPrice(selectedPlan, selectedCountry.currency)}
+                      {originalPrice(selectedPlan, selectedCountry)}
                     </span>
                   )}
                 </p>
@@ -468,19 +519,19 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
               </div>
 
               <div className="grid gap-3">
-                {getPaymentOptions(selectedCountry.code).map(opt => (
+                {selectedCountry.methods.map(method => (
                   <button
-                    key={opt.channel}
-                    onClick={() => handlePayment(opt.channel)}
+                    key={method.key}
+                    onClick={() => handlePayment(method)}
                     disabled={status === 'processing'}
                     className="flex items-center gap-4 px-5 py-4 rounded-xl bg-n8n-dark-3 border-2 border-red-500/70 hover:border-red-400 hover:bg-n8n-dark-4 transition-all text-left disabled:opacity-60 disabled:cursor-not-allowed group"
                   >
-                    <span className="text-2xl">{opt.icon}</span>
+                    <span className="text-2xl">{method.icon}</span>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-white group-hover:text-n8n-orange transition-colors">
-                        {opt.label}
+                        {method.label}
                       </div>
-                      <div className="text-xs text-n8n-gray mt-0.5">{opt.description}</div>
+                      <div className="text-xs text-n8n-gray mt-0.5">{method.description}</div>
                     </div>
                     {status === 'processing' ? (
                       <Loader2 size={20} className="animate-spin text-n8n-orange" />
