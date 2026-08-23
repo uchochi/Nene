@@ -35,35 +35,34 @@ interface PaymentOption {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Countries — Paystack-supported currencies: NGN GHS ZAR KES USD   */
-/*  All others use USD                                                */
+/*  Countries — ALL pay in NGN (NG-registered Paystack merchant)      */
 /* ------------------------------------------------------------------ */
 
 const countries: Country[] = [
   { code: 'NG', name: 'Nigeria',               currency: 'NGN', flag: '🇳🇬' },
-  { code: 'ZA', name: 'South Africa',          currency: 'ZAR', flag: '🇿🇦' },
-  { code: 'KE', name: 'Kenya',                 currency: 'KES', flag: '🇰🇪' },
-  { code: 'EG', name: 'Egypt',                 currency: 'USD', flag: '🇪🇬' },
-  { code: 'GH', name: 'Ghana',                 currency: 'GHS', flag: '🇬🇭' },
-  { code: 'MA', name: 'Morocco',               currency: 'USD', flag: '🇲🇦' },
-  { code: 'GB', name: 'United Kingdom',        currency: 'USD', flag: '🇬🇧' },
-  { code: 'FR', name: 'France',                currency: 'USD', flag: '🇫🇷' },
-  { code: 'DE', name: 'Germany',               currency: 'USD', flag: '🇩🇪' },
-  { code: 'IT', name: 'Italy',                 currency: 'USD', flag: '🇮🇹' },
-  { code: 'ES', name: 'Spain',                 currency: 'USD', flag: '🇪🇸' },
-  { code: 'NL', name: 'Netherlands',           currency: 'USD', flag: '🇳🇱' },
-  { code: 'US', name: 'United States',         currency: 'USD', flag: '🇺🇸' },
-  { code: 'CA', name: 'Canada',                currency: 'USD', flag: '🇨🇦' },
-  { code: 'MX', name: 'Mexico',                currency: 'USD', flag: '🇲🇽' },
-  { code: 'BR', name: 'Brazil',                currency: 'USD', flag: '🇧🇷' },
-  { code: 'AR', name: 'Argentina',             currency: 'USD', flag: '🇦🇷' },
-  { code: 'CO', name: 'Colombia',              currency: 'USD', flag: '🇨🇴' },
-  { code: 'IN', name: 'India',                 currency: 'USD', flag: '🇮🇳' },
-  { code: 'JP', name: 'Japan',                 currency: 'USD', flag: '🇯🇵' },
-  { code: 'KR', name: 'South Korea',           currency: 'USD', flag: '🇰🇷' },
-  { code: 'SG', name: 'Singapore',             currency: 'USD', flag: '🇸🇬' },
-  { code: 'AE', name: 'United Arab Emirates',  currency: 'USD', flag: '🇦🇪' },
-  { code: 'CN', name: 'China',                 currency: 'USD', flag: '🇨🇳' },
+  { code: 'ZA', name: 'South Africa',          currency: 'NGN', flag: '🇿🇦' },
+  { code: 'KE', name: 'Kenya',                 currency: 'NGN', flag: '🇰🇪' },
+  { code: 'EG', name: 'Egypt',                 currency: 'NGN', flag: '🇪🇬' },
+  { code: 'GH', name: 'Ghana',                 currency: 'NGN', flag: '🇬🇭' },
+  { code: 'MA', name: 'Morocco',               currency: 'NGN', flag: '🇲🇦' },
+  { code: 'GB', name: 'United Kingdom',        currency: 'NGN', flag: '🇬🇧' },
+  { code: 'FR', name: 'France',                currency: 'NGN', flag: '🇫🇷' },
+  { code: 'DE', name: 'Germany',               currency: 'NGN', flag: '🇩🇪' },
+  { code: 'IT', name: 'Italy',                 currency: 'NGN', flag: '🇮🇹' },
+  { code: 'ES', name: 'Spain',                 currency: 'NGN', flag: '🇪🇸' },
+  { code: 'NL', name: 'Netherlands',           currency: 'NGN', flag: '🇳🇱' },
+  { code: 'US', name: 'United States',         currency: 'NGN', flag: '🇺🇸' },
+  { code: 'CA', name: 'Canada',                currency: 'NGN', flag: '🇨🇦' },
+  { code: 'MX', name: 'Mexico',                currency: 'NGN', flag: '🇲🇽' },
+  { code: 'BR', name: 'Brazil',                currency: 'NGN', flag: '🇧🇷' },
+  { code: 'AR', name: 'Argentina',             currency: 'NGN', flag: '🇦🇷' },
+  { code: 'CO', name: 'Colombia',              currency: 'NGN', flag: '🇨🇴' },
+  { code: 'IN', name: 'India',                 currency: 'NGN', flag: '🇮🇳' },
+  { code: 'JP', name: 'Japan',                 currency: 'NGN', flag: '🇯🇵' },
+  { code: 'KR', name: 'South Korea',           currency: 'NGN', flag: '🇰🇷' },
+  { code: 'SG', name: 'Singapore',             currency: 'NGN', flag: '🇸🇬' },
+  { code: 'AE', name: 'United Arab Emirates',  currency: 'NGN', flag: '🇦🇪' },
+  { code: 'CN', name: 'China',                 currency: 'NGN', flag: '🇨🇳' },
 ]
 
 /* ------------------------------------------------------------------ */
@@ -245,7 +244,7 @@ export function PaystackCheckout({ config, onSuccess, onClose }: PaystackCheckou
           <div className="text-center">
             <h2 className="text-xl font-bold text-white">Select your country</h2>
             <p className="text-sm text-n8n-gray-light mt-1">
-              Payment methods are tailored to your region
+              All payments are processed in Nigerian Naira (₦) — your card's bank handles conversion automatically.
             </p>
           </div>
 

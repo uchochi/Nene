@@ -9,8 +9,10 @@ import {
 import { X, Check, ChevronRight, Zap, Loader2, AlertCircle, ArrowLeft, Tag } from 'lucide-react'
 
 /* ------------------------------------------------------- */
-/*  Countries (Paystack-supported currencies only)         */
-/*  Supported: NGN GHS ZAR KES USD — all others use USD   */
+/*  Countries — ALL pay in NGN                             */
+/*  Paystack merchant is NG-registered: only NGN (and      */
+/*  USD if activated) is supported. Foreign cards are      */
+/*  charged NGN and their issuer converts via FX.          */
 /* ------------------------------------------------------- */
 
 interface Country {
@@ -22,25 +24,25 @@ interface Country {
 
 const countries: Country[] = [
   { code: 'NG', name: 'Nigeria',               currency: 'NGN', flag: '🇳🇬' },
-  { code: 'KE', name: 'Kenya',                 currency: 'KES', flag: '🇰🇪' },
-  { code: 'GH', name: 'Ghana',                 currency: 'GHS', flag: '🇬🇭' },
-  { code: 'ZA', name: 'South Africa',          currency: 'ZAR', flag: '🇿🇦' },
-  { code: 'EG', name: 'Egypt',                 currency: 'USD', flag: '🇪🇬' },
-  { code: 'MA', name: 'Morocco',               currency: 'USD', flag: '🇲🇦' },
-  { code: 'US', name: 'United States',         currency: 'USD', flag: '🇺🇸' },
-  { code: 'GB', name: 'United Kingdom',        currency: 'USD', flag: '🇬🇧' },
-  { code: 'FR', name: 'France',                currency: 'USD', flag: '🇫🇷' },
-  { code: 'DE', name: 'Germany',               currency: 'USD', flag: '🇩🇪' },
-  { code: 'IT', name: 'Italy',                 currency: 'USD', flag: '🇮🇹' },
-  { code: 'ES', name: 'Spain',                 currency: 'USD', flag: '🇪🇸' },
-  { code: 'NL', name: 'Netherlands',           currency: 'USD', flag: '🇳🇱' },
-  { code: 'CA', name: 'Canada',                currency: 'USD', flag: '🇨🇦' },
-  { code: 'MX', name: 'Mexico',                currency: 'USD', flag: '🇲🇽' },
-  { code: 'BR', name: 'Brazil',                currency: 'USD', flag: '🇧🇷' },
-  { code: 'IN', name: 'India',                 currency: 'USD', flag: '🇮🇳' },
-  { code: 'JP', name: 'Japan',                 currency: 'USD', flag: '🇯🇵' },
-  { code: 'SG', name: 'Singapore',             currency: 'USD', flag: '🇸🇬' },
-  { code: 'AE', name: 'United Arab Emirates',  currency: 'USD', flag: '🇦🇪' },
+  { code: 'KE', name: 'Kenya',                 currency: 'NGN', flag: '🇰🇪' },
+  { code: 'GH', name: 'Ghana',                 currency: 'NGN', flag: '🇬🇭' },
+  { code: 'ZA', name: 'South Africa',          currency: 'NGN', flag: '🇿🇦' },
+  { code: 'EG', name: 'Egypt',                 currency: 'NGN', flag: '🇪🇬' },
+  { code: 'MA', name: 'Morocco',               currency: 'NGN', flag: '🇲🇦' },
+  { code: 'US', name: 'United States',         currency: 'NGN', flag: '🇺🇸' },
+  { code: 'GB', name: 'United Kingdom',        currency: 'NGN', flag: '🇬🇧' },
+  { code: 'FR', name: 'France',                currency: 'NGN', flag: '🇫🇷' },
+  { code: 'DE', name: 'Germany',               currency: 'NGN', flag: '🇩🇪' },
+  { code: 'IT', name: 'Italy',                 currency: 'NGN', flag: '🇮🇹' },
+  { code: 'ES', name: 'Spain',                 currency: 'NGN', flag: '🇪🇸' },
+  { code: 'NL', name: 'Netherlands',           currency: 'NGN', flag: '🇳🇱' },
+  { code: 'CA', name: 'Canada',                currency: 'NGN', flag: '🇨🇦' },
+  { code: 'MX', name: 'Mexico',                currency: 'NGN', flag: '🇲🇽' },
+  { code: 'BR', name: 'Brazil',                currency: 'NGN', flag: '🇧🇷' },
+  { code: 'IN', name: 'India',                 currency: 'NGN', flag: '🇮🇳' },
+  { code: 'JP', name: 'Japan',                 currency: 'NGN', flag: '🇯🇵' },
+  { code: 'SG', name: 'Singapore',             currency: 'NGN', flag: '🇸🇬' },
+  { code: 'AE', name: 'United Arab Emirates',  currency: 'NGN', flag: '🇦🇪' },
 ]
 
 type PaymentChannel = 'card' | 'bank_transfer'
@@ -414,7 +416,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-white">Select your country</h2>
-                  <p className="text-sm text-n8n-gray-light mt-1">Your payment currency is set by your country.</p>
+                  <p className="text-sm text-n8n-gray-light mt-1">All payments are processed in Nigerian Naira (₦) — your card's bank handles conversion automatically.</p>
                 </div>
                 {ratesLoading && <Loader2 size={16} className="animate-spin text-n8n-gray-light" />}
               </div>
