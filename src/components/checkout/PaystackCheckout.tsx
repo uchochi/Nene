@@ -35,34 +35,35 @@ interface PaymentOption {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Countries — major markets from each continent                      */
+/*  Countries — Paystack-supported currencies: NGN GHS ZAR KES USD   */
+/*  All others use USD                                                */
 /* ------------------------------------------------------------------ */
 
 const countries: Country[] = [
   { code: 'NG', name: 'Nigeria',               currency: 'NGN', flag: '🇳🇬' },
   { code: 'ZA', name: 'South Africa',          currency: 'ZAR', flag: '🇿🇦' },
   { code: 'KE', name: 'Kenya',                 currency: 'KES', flag: '🇰🇪' },
-  { code: 'EG', name: 'Egypt',                 currency: 'EGP', flag: '🇪🇬' },
+  { code: 'EG', name: 'Egypt',                 currency: 'USD', flag: '🇪🇬' },
   { code: 'GH', name: 'Ghana',                 currency: 'GHS', flag: '🇬🇭' },
-  { code: 'MA', name: 'Morocco',               currency: 'MAD', flag: '🇲🇦' },
-  { code: 'GB', name: 'United Kingdom',        currency: 'GBP', flag: '🇬🇧' },
-  { code: 'FR', name: 'France',                currency: 'EUR', flag: '🇫🇷' },
-  { code: 'DE', name: 'Germany',               currency: 'EUR', flag: '🇩🇪' },
-  { code: 'IT', name: 'Italy',                 currency: 'EUR', flag: '🇮🇹' },
-  { code: 'ES', name: 'Spain',                 currency: 'EUR', flag: '🇪🇸' },
-  { code: 'NL', name: 'Netherlands',           currency: 'EUR', flag: '🇳🇱' },
+  { code: 'MA', name: 'Morocco',               currency: 'USD', flag: '🇲🇦' },
+  { code: 'GB', name: 'United Kingdom',        currency: 'USD', flag: '🇬🇧' },
+  { code: 'FR', name: 'France',                currency: 'USD', flag: '🇫🇷' },
+  { code: 'DE', name: 'Germany',               currency: 'USD', flag: '🇩🇪' },
+  { code: 'IT', name: 'Italy',                 currency: 'USD', flag: '🇮🇹' },
+  { code: 'ES', name: 'Spain',                 currency: 'USD', flag: '🇪🇸' },
+  { code: 'NL', name: 'Netherlands',           currency: 'USD', flag: '🇳🇱' },
   { code: 'US', name: 'United States',         currency: 'USD', flag: '🇺🇸' },
-  { code: 'CA', name: 'Canada',                currency: 'CAD', flag: '🇨🇦' },
-  { code: 'MX', name: 'Mexico',                currency: 'MXN', flag: '🇲🇽' },
-  { code: 'BR', name: 'Brazil',                currency: 'BRL', flag: '🇧🇷' },
-  { code: 'AR', name: 'Argentina',             currency: 'ARS', flag: '🇦🇷' },
-  { code: 'CO', name: 'Colombia',              currency: 'COP', flag: '🇨🇴' },
-  { code: 'IN', name: 'India',                 currency: 'INR', flag: '🇮🇳' },
-  { code: 'JP', name: 'Japan',                 currency: 'JPY', flag: '🇯🇵' },
-  { code: 'KR', name: 'South Korea',           currency: 'KRW', flag: '🇰🇷' },
-  { code: 'SG', name: 'Singapore',             currency: 'SGD', flag: '🇸🇬' },
-  { code: 'AE', name: 'United Arab Emirates',  currency: 'AED', flag: '🇦🇪' },
-  { code: 'CN', name: 'China',                 currency: 'CNY', flag: '🇨🇳' },
+  { code: 'CA', name: 'Canada',                currency: 'USD', flag: '🇨🇦' },
+  { code: 'MX', name: 'Mexico',                currency: 'USD', flag: '🇲🇽' },
+  { code: 'BR', name: 'Brazil',                currency: 'USD', flag: '🇧🇷' },
+  { code: 'AR', name: 'Argentina',             currency: 'USD', flag: '🇦🇷' },
+  { code: 'CO', name: 'Colombia',              currency: 'USD', flag: '🇨🇴' },
+  { code: 'IN', name: 'India',                 currency: 'USD', flag: '🇮🇳' },
+  { code: 'JP', name: 'Japan',                 currency: 'USD', flag: '🇯🇵' },
+  { code: 'KR', name: 'South Korea',           currency: 'USD', flag: '🇰🇷' },
+  { code: 'SG', name: 'Singapore',             currency: 'USD', flag: '🇸🇬' },
+  { code: 'AE', name: 'United Arab Emirates',  currency: 'USD', flag: '🇦🇪' },
+  { code: 'CN', name: 'China',                 currency: 'USD', flag: '🇨🇳' },
 ]
 
 /* ------------------------------------------------------------------ */

@@ -9,7 +9,8 @@ import {
 import { X, Check, ChevronRight, Zap, Loader2, AlertCircle, ArrowLeft, Tag } from 'lucide-react'
 
 /* ------------------------------------------------------- */
-/*  Countries (Paystack-supported only)                    */
+/*  Countries (Paystack-supported currencies only)         */
+/*  Supported: NGN GHS ZAR KES USD — all others use USD   */
 /* ------------------------------------------------------- */
 
 interface Country {
@@ -24,22 +25,22 @@ const countries: Country[] = [
   { code: 'KE', name: 'Kenya',                 currency: 'KES', flag: '🇰🇪' },
   { code: 'GH', name: 'Ghana',                 currency: 'GHS', flag: '🇬🇭' },
   { code: 'ZA', name: 'South Africa',          currency: 'ZAR', flag: '🇿🇦' },
-  { code: 'EG', name: 'Egypt',                 currency: 'EGP', flag: '🇪🇬' },
-  { code: 'MA', name: 'Morocco',               currency: 'MAD', flag: '🇲🇦' },
+  { code: 'EG', name: 'Egypt',                 currency: 'USD', flag: '🇪🇬' },
+  { code: 'MA', name: 'Morocco',               currency: 'USD', flag: '🇲🇦' },
   { code: 'US', name: 'United States',         currency: 'USD', flag: '🇺🇸' },
-  { code: 'GB', name: 'United Kingdom',        currency: 'GBP', flag: '🇬🇧' },
-  { code: 'FR', name: 'France',                currency: 'EUR', flag: '🇫🇷' },
-  { code: 'DE', name: 'Germany',               currency: 'EUR', flag: '🇩🇪' },
-  { code: 'IT', name: 'Italy',                 currency: 'EUR', flag: '🇮🇹' },
-  { code: 'ES', name: 'Spain',                 currency: 'EUR', flag: '🇪🇸' },
-  { code: 'NL', name: 'Netherlands',           currency: 'EUR', flag: '🇳🇱' },
-  { code: 'CA', name: 'Canada',                currency: 'CAD', flag: '🇨🇦' },
-  { code: 'MX', name: 'Mexico',                currency: 'MXN', flag: '🇲🇽' },
-  { code: 'BR', name: 'Brazil',                currency: 'BRL', flag: '🇧🇷' },
-  { code: 'IN', name: 'India',                 currency: 'INR', flag: '🇮🇳' },
-  { code: 'JP', name: 'Japan',                 currency: 'JPY', flag: '🇯🇵' },
-  { code: 'SG', name: 'Singapore',             currency: 'SGD', flag: '🇸🇬' },
-  { code: 'AE', name: 'United Arab Emirates',  currency: 'AED', flag: '🇦🇪' },
+  { code: 'GB', name: 'United Kingdom',        currency: 'USD', flag: '🇬🇧' },
+  { code: 'FR', name: 'France',                currency: 'USD', flag: '🇫🇷' },
+  { code: 'DE', name: 'Germany',               currency: 'USD', flag: '🇩🇪' },
+  { code: 'IT', name: 'Italy',                 currency: 'USD', flag: '🇮🇹' },
+  { code: 'ES', name: 'Spain',                 currency: 'USD', flag: '🇪🇸' },
+  { code: 'NL', name: 'Netherlands',           currency: 'USD', flag: '🇳🇱' },
+  { code: 'CA', name: 'Canada',                currency: 'USD', flag: '🇨🇦' },
+  { code: 'MX', name: 'Mexico',                currency: 'USD', flag: '🇲🇽' },
+  { code: 'BR', name: 'Brazil',                currency: 'USD', flag: '🇧🇷' },
+  { code: 'IN', name: 'India',                 currency: 'USD', flag: '🇮🇳' },
+  { code: 'JP', name: 'Japan',                 currency: 'USD', flag: '🇯🇵' },
+  { code: 'SG', name: 'Singapore',             currency: 'USD', flag: '🇸🇬' },
+  { code: 'AE', name: 'United Arab Emirates',  currency: 'USD', flag: '🇦🇪' },
 ]
 
 type PaymentChannel = 'card' | 'bank_transfer'
