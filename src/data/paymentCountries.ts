@@ -662,6 +662,9 @@ export const PAYMENT_COUNTRIES: PaymentCountry[] = [
   },
 ]
 
+/* display order: alphabetical by country name */
+PAYMENT_COUNTRIES.sort((a, b) => a.name.localeCompare(b.name))
+
 /** Finds a payment country by its ISO code. */
 export function getPaymentCountry(code: string): PaymentCountry | undefined {
   return PAYMENT_COUNTRIES.find(c => c.code === code)
