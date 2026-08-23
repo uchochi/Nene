@@ -115,6 +115,9 @@ function fallbackRates(): Record<string, number> {
     CAD: 1.36, MXN: 17.5,
     BRL: 5.1, ARS: 870, COP: 4000,
     INR: 83, JPY: 150, KRW: 1320, SGD: 1.34, AED: 3.67, CNY: 7.24,
+    /* FlutterWave African currencies */
+    UGX: 3700, TZS: 2500, RWF: 1300, ZMW: 26, MWK: 1735, ETB: 120, TND: 3.1,
+    XOF: 600, XAF: 600, GNF: 8600, GMD: 70, SLE: 22, LRD: 190,
   }
 }
 
@@ -138,4 +141,14 @@ export function formatCurrency(amount: number, currency: string): string {
 export function paystackAmount(usdCents: number, rate: number): number {
   /* Paystack requires amounts in the lowest currency unit (cents, kobo, etc.) */
   return convertUsdCents(usdCents, rate)
+}
+
+/**
+ * FlutterWave amount in the currency's MAIN unit (e.g. ₦2,500 → 2500).
+ * No ×100 subunit conversion — divide USD cents by 100, convert,
+ * and round to a whole number.
+ */
+export function flutterwaveAmount(usdCents: number, rate: number): number {
+  const usdMain = usdCents / 100
+  return Math.round(usdMain * rate)
 }
