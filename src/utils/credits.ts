@@ -20,8 +20,10 @@ export const PLANS: Plan[] = [
   { id: '40000', credits: 40000, label: 'Business', priceUsdCents: 4000 },  // 4M tokens, $40
 ]
 
-/* first-time buyers get 75 % off */
-export const FIRST_TIME_DISCOUNT = 0.75  // 75 %
+/* Discounts apply ONLY via coupon codes (e.g. new2026set).
+   The old automatic first-time discount was removed — it stacked
+   with the coupon (25% × 25% ≈ 6% of base). */
+export const FIRST_TIME_DISCOUNT = 0
 
 /* ── Token conversion helpers ── */
 
