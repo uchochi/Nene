@@ -320,7 +320,7 @@ export function PaystackCheckout({ config, onSuccess, onClose }: PaystackCheckou
                 key={option.channel}
                 onClick={() => handlePayment(option.channel)}
                 disabled={status === 'processing'}
-                className="flex items-center gap-4 px-5 py-4 rounded-xl bg-n8n-dark-3 border border-n8n-dark-4 hover:border-n8n-orange hover:bg-n8n-dark-4 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed group"
+                className="flex items-center gap-4 px-5 py-4 rounded-xl bg-n8n-dark-3 border-2 border-red-500/70 hover:border-red-400 hover:bg-n8n-dark-4 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed group"
               >
                 <span className="text-2xl">{option.icon}</span>
                 <div className="flex-1 min-w-0">

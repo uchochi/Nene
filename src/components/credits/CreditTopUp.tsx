@@ -354,7 +354,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
                     value={couponCode}
                     onChange={e => { setCouponCode(e.target.value); setCouponError(''); setAppliedCoupon(null) }}
                     placeholder="Enter coupon code"
-                    className="input-field flex-1 text-xs"
+                    className="input-field flex-1 text-xs border-2 border-red-500/70 bg-n8n-dark-2 placeholder:text-n8n-gray focus:border-red-400 focus:ring-1 focus:ring-red-400/50"
                   />
                   <button
                     onClick={handleApplyCoupon}
@@ -471,7 +471,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
                     key={opt.channel}
                     onClick={() => handlePayment(opt.channel)}
                     disabled={status === 'processing'}
-                    className="flex items-center gap-4 px-5 py-4 rounded-xl bg-n8n-dark-3 border border-n8n-dark-4 hover:border-n8n-orange hover:bg-n8n-dark-4 transition-all text-left disabled:opacity-60 disabled:cursor-not-allowed group"
+                    className="flex items-center gap-4 px-5 py-4 rounded-xl bg-n8n-dark-3 border-2 border-red-500/70 hover:border-red-400 hover:bg-n8n-dark-4 transition-all text-left disabled:opacity-60 disabled:cursor-not-allowed group"
                   >
                     <span className="text-2xl">{opt.icon}</span>
                     <div className="flex-1 min-w-0">
