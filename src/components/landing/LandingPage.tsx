@@ -334,7 +334,7 @@ export default function LandingPage() {
                   </span>
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-n8n-dark-4/60 border border-n8n-dark-5">
                     <ShieldCheck size={12} className="text-n8n-orange" />
-                    Secure payments via Paystack
+                    Secure payments via Paystack & FlutterWave
                   </span>
                 </div>
               </div>
