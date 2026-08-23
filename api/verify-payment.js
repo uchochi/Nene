@@ -5,12 +5,23 @@ export async function OPTIONS() {
   return new Response(null, { headers: corsHeaders() })
 }
 
+/**
+ * Dual-provider payment verification.
+ *
+ * POST body:
+ *   provider: 'paystack'    → { reference, userId, planId, credits, amount, currency }
+ *                              amount in SUBUNITS (kobo)
+ *   provider: 'flutterwave' → { transactionId, txRef, userId, planId, credits, amount, currency }
+ *                              amount in MAIN units
+ *
+ * Both paths verify server-side with the provider's API, then share the
+ * same duplicate-check → credit-update → transaction-insert tail.
+ */
 export async function POST(req) {
-  const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY
   const supabaseUrl = process.env.VITE_SUPABASE_URL
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-  if (!paystackSecretKey || !supabaseUrl || !supabaseKey) {
+  if (!supabaseUrl || !supabaseKey) {
     return new Response(JSON.stringify({ error: 'Server misconfigured' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders() },
@@ -19,53 +30,144 @@ export async function POST(req) {
 
   try {
     const body = await req.json()
-    const { reference, userId, planId, credits, amount, currency } = body
+    const {
+      provider = 'paystack',
+      reference,        /* paystack */
+      transactionId,    /* flutterwave */
+      txRef,            /* flutterwave */
+      userId, planId, credits, amount, currency,
+    } = body
 
-    if (!reference || !userId || !planId || !credits || !amount || !currency) {
+    if (!userId || !planId || !credits || !amount || !currency) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json', ...corsHeaders() },
       })
     }
 
-    /* verify with Paystack */
-    const verifyRes = await fetch(
-      `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
-      { headers: { Authorization: `Bearer ${paystackSecretKey}` } },
-    )
+    /* ── provider-specific verification → canonical reference ── */
+    let canonicalRef
 
-    if (!verifyRes.ok) {
-      const errText = await verifyRes.text()
-      return new Response(JSON.stringify({ error: `Paystack API error: ${errText}` }), {
-        status: 502,
+    if (provider === 'paystack') {
+      const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY
+      if (!paystackSecretKey) {
+        return new Response(JSON.stringify({ error: 'Server misconfigured' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        })
+      }
+      if (!reference) {
+        return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        })
+      }
+
+      const verifyRes = await fetch(
+        `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
+        { headers: { Authorization: `Bearer ${paystackSecretKey}` } },
+      )
+
+      if (!verifyRes.ok) {
+        const errText = await verifyRes.text()
+        return new Response(JSON.stringify({ error: `Paystack API error: ${errText}` }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        })
+      }
+
+      const verifyData = await verifyRes.json()
+
+      if (!verifyData.status || verifyData.data.status !== 'success') {
+        return new Response(JSON.stringify({ error: 'Payment not verified', paystack: verifyData }), {
+          status: 402,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        })
+      }
+
+      /* amount is in kobo/cents — compare with Paystack */
+      if (verifyData.data.amount !== amount) {
+        return new Response(JSON.stringify({ error: 'Amount mismatch' }), {
+          status: 409,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        })
+      }
+
+      canonicalRef = reference
+    } else if (provider === 'flutterwave') {
+      const flwSecretKey = process.env.FLUTTERWAVE_SECRET_KEY
+      if (!flwSecretKey) {
+        return new Response(JSON.stringify({ error: 'Server misconfigured' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        })
+      }
+      if (!transactionId || !txRef) {
+        return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        })
+      }
+
+      const verifyRes = await fetch(
+        `https://api.flutterwave.com/v3/transactions/${encodeURIComponent(transactionId)}/verify`,
+        { headers: { Authorization: `Bearer ${flwSecretKey}` } },
+      )
+
+      if (!verifyRes.ok) {
+        const errText = await verifyRes.text()
+        return new Response(JSON.stringify({ error: `FlutterWave API error: ${errText}` }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        })
+      }
+
+      const verifyData = await verifyRes.json()
+
+      if (verifyData.status !== 'success' || verifyData.data.status !== 'successful') {
+        return new Response(JSON.stringify({ error: 'Payment not verified', flutterwave: verifyData }), {
+          status: 402,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        })
+      }
+
+      /* FlutterWave amounts are in MAIN units (no kobo/cents) */
+      if (Number(verifyData.data.amount) !== Number(amount)) {
+        return new Response(JSON.stringify({ error: 'Amount mismatch' }), {
+          status: 409,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        })
+      }
+
+      if (verifyData.data.currency !== currency) {
+        return new Response(JSON.stringify({ error: 'Currency mismatch' }), {
+          status: 409,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        })
+      }
+
+      if (verifyData.data.tx_ref !== txRef) {
+        return new Response(JSON.stringify({ error: 'Transaction reference mismatch' }), {
+          status: 409,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        })
+      }
+
+      canonicalRef = txRef
+    } else {
+      return new Response(JSON.stringify({ error: `Unknown provider: ${provider}` }), {
+        status: 400,
         headers: { 'Content-Type': 'application/json', ...corsHeaders() },
       })
     }
 
-    const verifyData = await verifyRes.json()
-
-    if (!verifyData.status || verifyData.data.status !== 'success') {
-      return new Response(JSON.stringify({ error: 'Payment not verified', paystack: verifyData }), {
-        status: 402,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-      })
-    }
-
-    /* confirm amount matches (amount is in kobo/cents — compare with Paystack) */
-    if (verifyData.data.amount !== amount) {
-      return new Response(JSON.stringify({ error: 'Amount mismatch' }), {
-        status: 409,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-      })
-    }
-
-    /* check for duplicate — already processed? */
+    /* ── shared tail: duplicate check → credit update → txn insert ── */
     const supabase = createClient(supabaseUrl, supabaseKey)
 
     const { data: existing } = await supabase
       .from('credit_transactions')
       .select('id')
-      .eq('reference', reference)
+      .eq('reference', canonicalRef)
       .maybeSingle()
 
     if (existing) {
@@ -75,11 +177,9 @@ export async function POST(req) {
       })
     }
 
-    /* update user credits balance */
     const now = new Date().toISOString()
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
-    /* fetch current balance */
     const { data: profile } = await supabase
       .from('user_credits')
       .select('balance, total_purchased')
@@ -102,7 +202,6 @@ export async function POST(req) {
 
     if (upsertError) throw upsertError
 
-    /* insert transaction record */
     const { error: txnError } = await supabase
       .from('credit_transactions')
       .insert({
@@ -111,7 +210,7 @@ export async function POST(req) {
         credits_awarded: credits,
         amount_paid: amount,
         currency,
-        reference,
+        reference: canonicalRef,
         subscription_expires_at: expiresAt,
         status: 'completed',
       })
