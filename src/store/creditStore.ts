@@ -58,7 +58,15 @@ interface CreditState {
 /*  localStorage helpers ( fallback when supabase is off )  */
 /* ------------------------------------------------------- */
 
-const LS_KEY = 'ooguy-credits'
+/**
+ * Keys are scoped PER USER: "ooguy-credits:{userId}".
+ * A shared key would leak one account's balance to every other
+ * account on the same browser (and poison new signups via the
+ * local fallback path). The legacy unscoped key is removed on
+ * initialize.
+ */
+const LS_PREFIX = 'ooguy-credits'
+const LEGACY_LS_KEY = 'ooguy-credits'
 
 interface LocalCreditData {
   balance: number
@@ -66,17 +74,23 @@ interface LocalCreditData {
   transactions: CreditTransaction[]
 }
 
-function loadLocal(): LocalCreditData {
-  try {
-    const raw = localStorage.getItem(LS_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch { /* ignore */ }
-  return { balance: 0, totalPurchased: 0, transactions: [] }
+const EMPTY_LOCAL: LocalCreditData = { balance: 0, totalPurchased: 0, transactions: [] }
+
+function lsKey(userId: string): string {
+  return `${LS_PREFIX}:${userId}`
 }
 
-function saveLocal(data: LocalCreditData): void {
+function loadLocal(userId: string): LocalCreditData {
   try {
-    localStorage.setItem(LS_KEY, JSON.stringify(data))
+    const raw = localStorage.getItem(lsKey(userId))
+    if (raw) return JSON.parse(raw)
+  } catch { /* ignore */ }
+  return { ...EMPTY_LOCAL }
+}
+
+function saveLocal(data: LocalCreditData, userId: string): void {
+  try {
+    localStorage.setItem(lsKey(userId), JSON.stringify(data))
   } catch { /* ignore */ }
 }
 
@@ -85,7 +99,8 @@ function saveLocal(data: LocalCreditData): void {
 /* ------------------------------------------------------- */
 
 export const useCreditStore = create<CreditState>((set, get) => ({
-  ...loadLocal(),
+  /* start at zero — real balance arrives via initialize(userId) */
+  ...EMPTY_LOCAL,
   loading: false,
   initialized: false,
   tokensUsed: 0,
@@ -94,7 +109,8 @@ export const useCreditStore = create<CreditState>((set, get) => ({
   initialize: async (userId: string) => {
     set({ loading: true })
 
-    const local = loadLocal()
+    /* drop the legacy shared key — it leaked balances across accounts */
+    try { localStorage.removeItem(LEGACY_LS_KEY) } catch { /* ignore */ }
 
     if (supabase) {
       try {
@@ -105,53 +121,53 @@ export const useCreditStore = create<CreditState>((set, get) => ({
           .eq('user_id', userId)
           .single()
 
-        const { data: txns } = await supabase
-          .from('credit_transactions')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false })
-          .limit(100)
-
         if (profile) {
-          /* Always prefer server balance — it's the source of truth */
+          /* Server is the single source of truth — never let stale
+             local data override it. */
+          const { data: txns } = await supabase
+            .from('credit_transactions')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(100)
+
           const balance = profile.balance
-          const totalPurchased = local.totalPurchased > profile.total_purchased
-            ? local.totalPurchased
-            : profile.total_purchased
+          const totalPurchased = profile.total_purchased
           const tokensUsed = profile.tokens_used ?? 0
+          const mappedTxns = (txns || []).map(mapTxn)
 
           set({
             balance,
             totalPurchased,
             tokensUsed,
-            transactions: (txns || []).map(mapTxn),
+            transactions: mappedTxns,
             loading: false,
             initialized: true,
           })
-          /* sync local */
-          saveLocal({ balance, totalPurchased, transactions: (txns || []).map(mapTxn) })
-
-          /* If local had a lower balance, push that correction to Supabase */
-          if (balance !== profile.balance && supabase) {
-            try {
-              await supabase.from('user_credits').upsert({
-                user_id: userId,
-                balance,
-                total_purchased: totalPurchased,
-                tokens_used: tokensUsed,
-                updated_at: new Date().toISOString(),
-              }, { onConflict: 'user_id' })
-            } catch { /* best-effort */ }
-          }
-
+          saveLocal({ balance, totalPurchased, transactions: mappedTxns }, userId)
           return
         }
+
+        /* No server row yet (fresh signup): create a canonical zero row
+           instead of falling back to whatever is in localStorage. */
+        const now = new Date().toISOString()
+        await supabase.from('user_credits').upsert({
+          user_id: userId,
+          balance: 0,
+          total_purchased: 0,
+          tokens_used: 0,
+          updated_at: now,
+        }, { onConflict: 'user_id' })
+
+        set({ ...EMPTY_LOCAL, loading: false, initialized: true })
+        saveLocal(EMPTY_LOCAL, userId)
+        return
       } catch { /* fall through to local */ }
     }
 
-    /* fallback to local */
+    /* fallback to per-user local only */
     set({
-      ...local,
+      ...loadLocal(userId),
       loading: false,
       initialized: true,
     })
@@ -167,10 +183,10 @@ export const useCreditStore = create<CreditState>((set, get) => ({
 
     const newBalance = balance - amount
     set({ balance: newBalance })
-    saveLocal({ balance: newBalance, totalPurchased, transactions })
 
     /* sync to supabase (await it so balance persists across reloads) */
     const userId = getCurrentUserId()
+    if (userId) saveLocal({ balance: newBalance, totalPurchased, transactions }, userId)
     if (userId && supabase) {
       try {
         const { error } = await supabase.from('user_credits').upsert({
@@ -255,10 +271,9 @@ export const useCreditStore = create<CreditState>((set, get) => ({
       transactions: [txn, ...transactions],
     })
 
-    saveLocal({ balance: newBalance, totalPurchased: newTotal, transactions: [txn, ...transactions] })
-
     /* sync to supabase */
     const userId = getCurrentUserId()
+    if (userId) saveLocal({ balance: newBalance, totalPurchased: newTotal, transactions: [txn, ...transactions] }, userId)
     if (userId && supabase) {
       try {
         await supabase.from('user_credits').upsert({
@@ -306,7 +321,7 @@ export const useCreditStore = create<CreditState>((set, get) => ({
           tokensUsed: profile.tokens_used ?? 0,
           transactions: (txns || []).map(mapTxn),
         })
-        saveLocal({ balance: profile.balance, totalPurchased: profile.total_purchased, transactions: (txns || []).map(mapTxn) })
+        saveLocal({ balance: profile.balance, totalPurchased: profile.total_purchased, transactions: (txns || []).map(mapTxn) }, userId)
       }
     } catch { /* ignore */ }
   },
