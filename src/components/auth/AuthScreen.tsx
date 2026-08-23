@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../store/authStore'
-import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react'
+import { Mail, Lock, User, Eye, EyeOff, AlertTriangle } from 'lucide-react'
 
 type View = 'sign-in' | 'sign-up' | 'verify-otp'
 
@@ -229,6 +229,16 @@ export function AuthScreen() {
                 {view === 'verify-otp' && 'Check your email for the verification code.'}
               </p>
             </div>
+
+            {/* SMTP incident notice — remove once email delivery is stable */}
+            {view !== 'verify-otp' && (
+              <div className="mb-5 p-3.5 bg-amber-500/10 border border-amber-500/25 rounded-lg flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+                <span className="text-amber-200/90 text-sm leading-5">
+                  We're fixing an issue with our email service — sign-up and login emails may be delayed or fail to arrive. Please try again shortly.
+                </span>
+              </div>
+            )}
 
             {error && (
               <div className="mb-5 p-3.5 bg-[#EA4B71]/10 border border-[#EA4B71]/25 rounded-lg flex items-start gap-2.5">

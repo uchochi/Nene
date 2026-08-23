@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { OnboardingScreen } from './components/onboarding/OnboardingScreen'
 import { AuthScreen } from './components/auth/AuthScreen'
+import { VerifyEmailBanner } from './components/auth/VerifyEmailBanner'
 import { GlobalLayout } from './components/layout/GlobalLayout'
 import { OverviewPage } from './pages/OverviewPage'
 import { ProjectsPage } from './pages/ProjectsPage'
@@ -79,6 +80,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
+    <VerifyEmailBanner />
     <Routes>
       {/* account-level pages share the global Vercel-style sidebar */}
       <Route element={<GlobalLayout />}>
