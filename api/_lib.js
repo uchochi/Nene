@@ -19,46 +19,8 @@ export function signJwt(payload, secret) {
   return `${data}.${sig}`
 }
 
-export function verifyTelegramInitData(initData, botToken) {
-  const params = new URLSearchParams(initData)
-  const hash = params.get('hash')
-  if (!hash) throw new Error('Missing hash in initData')
-
-  params.delete('hash')
-
-  const sorted = Array.from(params.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([k, v]) => `${k}=${v}`)
-    .join('\n')
-
-  const secretKey = createHmac('sha256', 'WebAppData').update(botToken).digest()
-  const computedHash = createHmac('sha256', secretKey).update(sorted).digest('hex')
-
-  if (computedHash !== hash) {
-    throw new Error('Invalid initData hash')
-  }
-
-  const result = {}
-  for (const [k, v] of params.entries()) {
-    result[k] = v
-  }
-  return result
-}
-
-export function parseUserFromInitData(initData) {
-  const params = new URLSearchParams(initData)
-  const userRaw = params.get('user')
-  if (!userRaw) throw new Error('Missing user in initData')
-
-  const user = JSON.parse(userRaw)
-  return {
-    id: user.id,
-    username: user.username ?? null,
-    first_name: user.first_name ?? null,
-    last_name: user.last_name ?? null,
-    phone_number: user.phone_number ?? null,
-  }
-}
+/* Telegram initData verification moved to telegram-webhook-archive/
+   (app migrated to browser-first access on 2026-08-24). */
 
 export function corsHeaders() {
   return {
