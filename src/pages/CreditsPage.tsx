@@ -102,7 +102,7 @@ export function CreditsPage() {
             Recent Transactions
           </h2>
           <button
-            onClick={() => navigate('/history')}
+            onClick={() => navigate('/app/history')}
             className="text-xs text-n8n-orange hover:underline inline-flex items-center gap-1"
           >
             View all

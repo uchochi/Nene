@@ -22,11 +22,11 @@ export function ProjectsPage() {
 
   const openProject = (id: string) => {
     loadWorkflow(id)
-    navigate(`/projects/${id}`)
+    navigate(`/app/projects/${id}`)
   }
 
   const handleNew = () => {
-    navigate('/projects/new')
+    navigate('/app/projects/new')
     try { newWorkflow() } catch (e) { console.error('newWorkflow error:', e) }
   }
 

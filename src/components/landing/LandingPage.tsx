@@ -1,4 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { isTMA } from '../../utils/tma'
 import {
   ArrowRight, Workflow, Bot, FileJson, Zap, Languages, Tags,
   Sparkles, ChevronRight, Image as ImageIcon, Mic, GraduationCap, ShieldCheck, Coins,
@@ -84,6 +86,13 @@ const plans = [
 ]
 
 export default function LandingPage() {
+  const navigate = useNavigate()
+
+  /* opened inside the Telegram Mini App → skip marketing, go straight to the app */
+  useEffect(() => {
+    if (isTMA()) navigate('/app', { replace: true })
+  }, [navigate])
+
   return (
     <div className="min-h-screen bg-n8n-dark text-white overflow-hidden">
 
@@ -94,12 +103,10 @@ export default function LandingPage() {
             <img src="/logo.png" alt="ooguy" className="h-9" />
           </div>
           <a
-            href="https://t.me/ooguy_bot"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/app"
             className="btn-primary text-sm px-5 py-2 inline-flex items-center gap-2"
           >
-            Open in Telegram
+            Sign Up
             <ArrowRight size={14} />
           </a>
         </div>
@@ -126,20 +133,17 @@ export default function LandingPage() {
           </h1>
 
           <p className="text-base md:text-lg text-n8n-gray-light max-w-2xl mx-auto mb-10 reveal-up" style={{ animationDelay: '.2s' }}>
-            A visual workflow editor inside Telegram. Import text, JSON, CSV — or images, audio,
+            A visual workflow editor in your browser. Import text, JSON, CSV — or images, audio,
             video, and PDFs — connect AI-powered nodes, and export production-ready datasets
             for fine-tuning any model.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 reveal-up" style={{ animationDelay: '.3s' }}>
             <a
-              href="https://t.me/ooguy_bot"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/app"
               className="btn-primary text-base px-8 py-3 inline-flex items-center gap-2.5"
             >
-              <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.492-1.302.48-.428-.013-1.252-.242-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-              Launch in Telegram
+              Get Started Free
               <ArrowRight size={16} />
             </a>
             <a href="#features" className="btn-secondary text-base px-8 py-3 inline-flex items-center gap-2">
@@ -354,17 +358,14 @@ export default function LandingPage() {
               Ready to Build Your Dataset?
             </h2>
             <p className="text-n8n-gray-light text-base md:text-lg max-w-xl mx-auto mb-10 reveal-up" style={{ animationDelay: '.2s' }}>
-              Open ooguy in Telegram — built-in tours walk you from blank canvas to your first
-              exported dataset in minutes.
+              Create a free account in your browser — built-in tours walk you from blank
+              canvas to your first exported dataset in minutes.
             </p>
             <a
-              href="https://t.me/ooguy_bot"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/app"
               className="btn-primary text-base px-10 py-3.5 inline-flex items-center gap-2.5 reveal-up"
               style={{ animationDelay: '.3s' }}
             >
-              <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.492-1.302.48-.428-.013-1.252-.242-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
               Get Started Free
               <ArrowRight size={16} />
             </a>

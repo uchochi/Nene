@@ -137,7 +137,7 @@ export function Toolbar({ onToggleSidebar, onBuyCredits, onOpenExport }: Toolbar
 
         {/* back to projects */}
         <button
-          onClick={() => navigate('/projects')}
+          onClick={() => navigate('/app/projects')}
           data-tour="toolbar-back"
           className="p-1.5 rounded-lg hover:bg-n8n-dark-4 text-n8n-gray-light hover:text-white transition-colors"
           title="Back to projects"

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { OnboardingScreen } from './components/onboarding/OnboardingScreen'
 import { AuthScreen } from './components/auth/AuthScreen'
@@ -11,12 +11,54 @@ import { HistoryPage } from './pages/HistoryPage'
 import { CreditsPage } from './pages/CreditsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { ProjectEditorPage } from './pages/ProjectEditorPage'
+import LandingPage from './components/landing/LandingPage'
 import { useWorkflowStore } from './store/workflowStore'
 import { useCreditStore } from './store/creditStore'
 import { useAuthStore } from './store/authStore'
 import { initTMA } from './utils/tma'
 
+/**
+ * Browser-first routing:
+ *   /        → public marketing home (LandingPage)
+ *   /app/*   → auth-gated application shell
+ *
+ * The Telegram Mini App path still works — LandingPage redirects
+ * straight into /app when it detects a Telegram WebApp context.
+ */
 export default function App() {
+  useEffect(() => {
+    initTMA() /* no-ops in a plain browser */
+  }, [])
+
+  return (
+    <ErrorBoundary>
+      <Routes>
+        {/* public marketing home */}
+        <Route path="/" element={<LandingPage />} />
+
+        {/* auth-gated application */}
+        <Route path="/app" element={<AppGate />}>
+          <Route element={<GlobalLayout />}>
+            <Route index element={<OverviewPage />} />
+            <Route path="projects" element={<ProjectsPage />} />
+            <Route path="history" element={<HistoryPage />} />
+            <Route path="credits" element={<CreditsPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+          </Route>
+
+          {/* project editor — node palette + canvas + toolbar only */}
+          <Route path="projects/:id" element={<ProjectEditorPage />} />
+        </Route>
+
+        {/* fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </ErrorBoundary>
+  )
+}
+
+/** Auth + onboarding + store bootstrap for everything under /app. */
+function AppGate() {
   const showOnboarding = useWorkflowStore(s => s.showOnboarding)
   const wfInitialized = useWorkflowStore(s => s.initialized)
   const wfInitialize = useWorkflowStore(s => s.initialize)
@@ -31,7 +73,6 @@ export default function App() {
   const creditInitialize = useCreditStore(s => s.initialize)
 
   useEffect(() => {
-    initTMA()
     initialize()
   }, [initialize])
 
@@ -79,24 +120,9 @@ export default function App() {
   }
 
   return (
-    <ErrorBoundary>
-    <VerifyEmailBanner />
-    <Routes>
-      {/* account-level pages share the global Vercel-style sidebar */}
-      <Route element={<GlobalLayout />}>
-        <Route path="/" element={<OverviewPage />} />
-        <Route path="/projects" element={<ProjectsPage />} />
-        <Route path="/history" element={<HistoryPage />} />
-        <Route path="/credits" element={<CreditsPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-      </Route>
-
-      {/* project editor — node palette + canvas + toolbar only */}
-      <Route path="/projects/:id" element={<ProjectEditorPage />} />
-
-      {/* fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-    </ErrorBoundary>
+    <>
+      <VerifyEmailBanner />
+      <Outlet />
+    </>
   )
 }

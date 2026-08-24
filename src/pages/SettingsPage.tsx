@@ -259,7 +259,7 @@ export function SettingsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 onClick={() => {
-                  navigate('/')
+                  navigate('/app')
                   setTimeout(() => startTour('overview'), 300)
                 }}
                 className="flex items-center gap-3 p-3.5 rounded-lg bg-n8n-dark-4 hover:bg-n8n-dark-5 border border-n8n-dark-5 hover:border-n8n-orange/40 transition-all text-left group"
@@ -274,7 +274,7 @@ export function SettingsPage() {
               <button
                 onClick={() => {
                   newWorkflow()
-                  navigate('/projects/new')
+                  navigate('/app/projects/new')
                   setTimeout(() => startTour('editor'), 400)
                 }}
                 className="flex items-center gap-3 p-3.5 rounded-lg bg-n8n-dark-4 hover:bg-n8n-dark-5 border border-n8n-dark-5 hover:border-n8n-orange/40 transition-all text-left group"

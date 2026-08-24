@@ -16,7 +16,7 @@ export function OverviewPage() {
   const totalPurchased = useCreditStore(s => s.totalPurchased)
 
   const handleNew = () => {
-    navigate('/projects/new')
+    navigate('/app/projects/new')
     try { newWorkflow() } catch (e) { console.error('newWorkflow error:', e) }
   }
 
@@ -37,7 +37,7 @@ export function OverviewPage() {
 
       {/* stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
-        <button onClick={() => navigate('/projects')} className="stat-card text-left">
+        <button onClick={() => navigate('/app/projects')} className="stat-card text-left">
           <div className="flex items-center justify-between mb-2">
             <FileText size={18} className="text-n8n-orange" />
             <ArrowRight size={14} className="text-n8n-gray" />
@@ -46,7 +46,7 @@ export function OverviewPage() {
           <div className="text-xs text-n8n-gray-light mt-0.5">Projects</div>
         </button>
 
-        <button onClick={() => navigate('/credits')} className="stat-card text-left">
+        <button onClick={() => navigate('/app/credits')} className="stat-card text-left">
           <div className="flex items-center justify-between mb-2">
             <Zap size={18} className="text-n8n-orange" />
             <ArrowRight size={14} className="text-n8n-gray" />
@@ -55,7 +55,7 @@ export function OverviewPage() {
           <div className="text-xs text-n8n-gray-light mt-0.5">Credits left</div>
         </button>
 
-        <button onClick={() => navigate('/history')} className="stat-card text-left">
+        <button onClick={() => navigate('/app/history')} className="stat-card text-left">
           <div className="flex items-center justify-between mb-2">
             <History size={18} className="text-n8n-orange" />
             <ArrowRight size={14} className="text-n8n-gray" />
@@ -93,7 +93,7 @@ export function OverviewPage() {
           </h2>
           {savedWorkflows.length > 0 && (
             <button
-              onClick={() => navigate('/projects')}
+              onClick={() => navigate('/app/projects')}
               className="text-xs text-n8n-orange hover:underline"
             >
               View all
@@ -121,7 +121,7 @@ export function OverviewPage() {
             {savedWorkflows.slice(0, 6).map(wf => (
               <button
                 key={wf.id}
-                onClick={() => navigate(`/projects/${wf.id}`)}
+                onClick={() => navigate(`/app/projects/${wf.id}`)}
                 className="project-card"
               >
                 <div className="flex items-center gap-2 mb-2">

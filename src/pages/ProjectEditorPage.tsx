@@ -56,7 +56,7 @@ export function ProjectEditorPage() {
 
   /* invalid project id → bounce back to the projects list */
   if (!exists) {
-    return <Navigate to="/projects" replace />
+    return <Navigate to="/app/projects" replace />
   }
 
   return (

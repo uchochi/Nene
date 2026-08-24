@@ -11,11 +11,11 @@ interface NavEntry {
 }
 
 const NAV_ITEMS: NavEntry[] = [
-  { to: '/', label: 'Overview', icon: LayoutGrid },
-  { to: '/projects', label: 'Projects', icon: FileText },
-  { to: '/history', label: 'History', icon: History },
-  { to: '/credits', label: 'Credits', icon: Zap },
-  { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/app', label: 'Overview', icon: LayoutGrid },
+  { to: '/app/projects', label: 'Projects', icon: FileText },
+  { to: '/app/history', label: 'History', icon: History },
+  { to: '/app/credits', label: 'Credits', icon: Zap },
+  { to: '/app/settings', label: 'Settings', icon: Settings },
 ]
 
 interface GlobalSidebarProps {
@@ -62,7 +62,7 @@ export function GlobalSidebar({ isOpen, onClose }: GlobalSidebarProps) {
               <NavLink
                 key={item.to}
                 to={item.to}
-                end={item.to === '/'}
+                end={item.to === '/app'}
                 onClick={onClose}
                 className={({ isActive }) =>
                   `nav-item ${isActive ? 'nav-item-active' : ''}`
