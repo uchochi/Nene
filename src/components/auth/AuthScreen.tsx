@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../store/authStore'
 import { Mail, Lock, User, Eye, EyeOff, AlertTriangle } from 'lucide-react'
@@ -6,7 +7,8 @@ import { Mail, Lock, User, Eye, EyeOff, AlertTriangle } from 'lucide-react'
 type View = 'sign-in' | 'sign-up' | 'verify-otp'
 
 export function AuthScreen() {
-  const [view, setView] = useState<View>('sign-in')
+  const [searchParams] = useSearchParams()
+  const [view, setView] = useState<View>(() => searchParams.get('mode') === 'signup' ? 'sign-up' : 'sign-in')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')

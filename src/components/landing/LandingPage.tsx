@@ -103,7 +103,7 @@ export default function LandingPage() {
             <img src="/logo.png" alt="ooguy" className="h-9" />
           </div>
           <a
-            href="/app"
+            href="/app?mode=signup"
             className="btn-primary text-sm px-5 py-2 inline-flex items-center gap-2"
           >
             Sign Up
@@ -140,10 +140,10 @@ export default function LandingPage() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 reveal-up" style={{ animationDelay: '.3s' }}>
             <a
-              href="/app"
+              href="/app?mode=signup"
               className="btn-primary text-base px-8 py-3 inline-flex items-center gap-2.5"
             >
-              Get Started Free
+              Get Started
               <ArrowRight size={16} />
             </a>
             <a href="#features" className="btn-secondary text-base px-8 py-3 inline-flex items-center gap-2">
@@ -362,11 +362,11 @@ export default function LandingPage() {
               canvas to your first exported dataset in minutes.
             </p>
             <a
-              href="/app"
+              href="/app?mode=signup"
               className="btn-primary text-base px-10 py-3.5 inline-flex items-center gap-2.5 reveal-up"
               style={{ animationDelay: '.3s' }}
             >
-              Get Started Free
+              Get Started
               <ArrowRight size={16} />
             </a>
           </div>
