@@ -1149,9 +1149,9 @@ async function ocrProcess(
       const extractedText = !result.error
         ? (result.content || '').trim()
         : `[OCR failed: ${result.error}]`
-      results.push({ ...item, extracted_text: extractedText, ocr_processed: true, ocr_model: model })
+      results.push({ ...item, extracted_text: extractedText, ocr_processed: true })
     } catch (e) {
-      results.push({ ...item, extracted_text: `[OCR error: ${e instanceof Error ? e.message : 'unknown'}]`, ocr_processed: false, ocr_model: model })
+      results.push({ ...item, extracted_text: `[OCR error: ${e instanceof Error ? e.message : 'unknown'}]`, ocr_processed: false })
     }
   }
   return results
@@ -1189,9 +1189,9 @@ async function transcribeProcess(
       const transcript = !result.error
         ? (result.content || '').trim()
         : `[Transcription failed: ${result.error}]`
-      results.push({ ...item, transcript, transcribe_processed: true, transcribe_model: model })
+      results.push({ ...item, transcript, transcribe_processed: true })
     } catch (e) {
-      results.push({ ...item, transcript: `[Transcription error: ${e instanceof Error ? e.message : 'unknown'}]`, transcribe_processed: false, transcribe_model: model })
+      results.push({ ...item, transcript: `[Transcription error: ${e instanceof Error ? e.message : 'unknown'}]`, transcribe_processed: false })
     }
   }
   return results
@@ -1231,9 +1231,9 @@ async function captionProcess(
       const description = !result.error
         ? (result.content || '').trim()
         : `[Caption failed: ${result.error}]`
-      results.push({ ...item, image_description: description, caption_processed: true, caption_model: model })
+      results.push({ ...item, image_description: description, caption_processed: true })
     } catch (e) {
-      results.push({ ...item, image_description: `[Caption error: ${e instanceof Error ? e.message : 'unknown'}]`, caption_processed: false, caption_model: model })
+      results.push({ ...item, image_description: `[Caption error: ${e instanceof Error ? e.message : 'unknown'}]`, caption_processed: false })
     }
   }
   return results
@@ -1297,9 +1297,9 @@ Output valid JSON only.`
       const analysis = !result.error
         ? (result.content || '').trim()
         : `[Vision AI failed: ${result.error}]`
-      results.push({ ...item, vision_analysis: analysis, vision_processed: true, vision_model: model })
+      results.push({ ...item, vision_analysis: analysis, vision_processed: true })
     } catch (e) {
-      results.push({ ...item, vision_analysis: `[Vision AI error: ${e instanceof Error ? e.message : 'unknown'}]`, vision_processed: false, vision_model: model })
+      results.push({ ...item, vision_analysis: `[Vision AI error: ${e instanceof Error ? e.message : 'unknown'}]`, vision_processed: false })
     }
   }
   return results

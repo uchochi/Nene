@@ -3,7 +3,7 @@ import { useWorkflowStore } from '../../store/workflowStore'
 import { useCreditStore } from '../../store/creditStore'
 import { COST_PER_EXPORT } from '../../utils/credits'
 import { encodeDownloadData } from '../../utils/downloadLink'
-import { X, Copy, Share2, ExternalLink } from 'lucide-react'
+import { X, Copy, Share2, ExternalLink, Download } from 'lucide-react'
 
 interface ExportModalProps {
   open: boolean
@@ -25,6 +25,10 @@ export function ExportModal({ open, onClose }: ExportModalProps) {
   const downloadUrl = encodeDownloadData(datasetResult, filename)
 
   const rowCount = datasetResult.split('\n').filter(l => l.trim()).length
+
+  const handleDownload = () => {
+    window.open(downloadUrl, '_blank')
+  }
 
   const handleCopy = async () => {
     try {
@@ -91,23 +95,31 @@ export function ExportModal({ open, onClose }: ExportModalProps) {
           </div>
         )}
 
-        <div>
-          <label className="label">Download Link</label>
-          <div className="flex items-center gap-2 mt-1">
-            <input
-              className="input-field flex-1 text-xs font-mono truncate"
-              value={downloadUrl}
-              readOnly
-            />
-            <button
-              onClick={handleCopy}
-              className="btn-secondary flex items-center gap-1.5 text-xs px-3 py-2 whitespace-nowrap flex-shrink-0"
-            >
-              <Copy size={14} />
-              {copyMsg || 'Copy'}
-            </button>
-          </div>
-        </div>
+         <div>
+           <label className="label">Download Link</label>
+           <div className="flex items-center gap-2 mt-1">
+             <input
+               className="input-field flex-1 text-xs font-mono truncate"
+               value={downloadUrl}
+               readOnly
+             />
+             <button
+               onClick={handleCopy}
+               className="btn-secondary flex items-center gap-1.5 text-xs px-3 py-2 whitespace-nowrap flex-shrink-0"
+             >
+               <Copy size={14} />
+               {copyMsg || 'Copy'}
+             </button>
+             <button
+               onClick={handleDownload}
+               className="btn-primary flex items-center gap-1.5 text-xs px-3 py-2 whitespace-nowrap flex-shrink-0"
+               title="Open in browser to download"
+             >
+               <Download size={14} />
+               Download
+             </button>
+           </div>
+         </div>
 
         <div className="flex items-center gap-2 text-sm text-n8n-gray-light bg-n8n-dark-3 rounded-lg px-4 py-3">
           <ExternalLink size={16} className="flex-shrink-0" />

@@ -5,7 +5,7 @@ import type {
   TranslateNodeConfig, OutputNodeConfig, AITransformNodeConfig,
 } from '../../store/workflowStore'
 import { useAuthStore } from '../../store/authStore'
-import { X, Trash2, Upload, AlertCircle, FileText, CheckCircle2, ChevronDown, ChevronRight } from 'lucide-react'
+import { X, Trash2, Upload, AlertCircle, FileText, CheckCircle2, ChevronDown, ChevronRight, Check } from 'lucide-react'
 import { getNodeColor } from '../../store/workflowStore'
 import { uploadMedia } from '../../utils/mediaUpload'
 import { isSupportedMime, type MediaAsset } from '../../types/media'
@@ -28,6 +28,34 @@ const nodeLabels: Record<string, string> = {
   translate: 'Translate Config',
   output: 'Output Config',
   ai: 'AI Transform Config',
+}
+
+/** Common languages for translation UI. Code → Name. */
+const LANGUAGES: Record<string, string> = {
+  es: 'Spanish',
+  fr: 'French',
+  de: 'German',
+  it: 'Italian',
+  pt: 'Portuguese',
+  ru: 'Russian',
+  ja: 'Japanese',
+  zh: 'Chinese',
+  ko: 'Korean',
+  ar: 'Arabic',
+  hi: 'Hindi',
+  nl: 'Dutch',
+  pl: 'Polish',
+  sv: 'Swedish',
+  da: 'Danish',
+  no: 'Norwegian',
+  fi: 'Finnish',
+  el: 'Greek',
+  tr: 'Turkish',
+  cs: 'Czech',
+  th: 'Thai',
+  vi: 'Vietnamese',
+  id: 'Indonesian',
+  ms: 'Malay',
 }
 
 export function ConfigPanel() {
@@ -220,14 +248,43 @@ export function ConfigPanel() {
         {nodeType === 'translate' && (
           <>
             <div>
-              <label className="label">Target Languages (comma-separated)</label>
+              <label className="label">Target Languages</label>
               <input
-                className="input-field"
+                className="input-field mb-3"
                 value={(config as TranslateNodeConfig).targetLanguages || ''}
                 onChange={e => update('targetLanguages', e.target.value)}
-                placeholder="es, fr, ja, de"
+                placeholder="Selected languages will appear here (es, fr, de, ja...)"
+                readOnly
               />
-              <p className="text-xs text-n8n-gray mt-1">Use ISO language codes (es, fr, ja, de, etc.)</p>
+              <p className="text-xs text-n8n-gray mb-2">Tap languages to add them:</p>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(LANGUAGES).map(([code, name]) => {
+                  const selected = ((config as TranslateNodeConfig).targetLanguages || '').includes(code)
+                  return (
+                    <button
+                      key={code}
+                      type="button"
+                      onClick={() => {
+                        const current = (config as TranslateNodeConfig).targetLanguages || ''
+                        const codes = current ? current.split(',').map(s => s.trim()) : []
+                        if (selected) {
+                          update('targetLanguages', codes.filter(c => c !== code).join(', '))
+                        } else {
+                          update('targetLanguages', [...codes, code].join(', '))
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                        selected
+                          ? 'bg-n8n-orange text-white'
+                          : 'bg-n8n-dark-4 text-n8n-gray-light hover:bg-n8n-dark-5 hover:text-white'
+                      }`}
+                    >
+                      {name}
+                      {selected && <Check size={12} className="inline ml-1" />}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <input
