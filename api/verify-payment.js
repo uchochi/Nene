@@ -200,7 +200,10 @@ export async function POST(req) {
         updated_at: now,
       }, { onConflict: 'user_id' })
 
-    if (upsertError) throw upsertError
+    if (upsertError) {
+      console.error('[verify-payment] upsert failed:', upsertError)
+      throw upsertError
+    }
 
     const { error: txnError } = await supabase
       .from('credit_transactions')
