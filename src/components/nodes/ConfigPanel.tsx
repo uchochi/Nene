@@ -32,30 +32,19 @@ const nodeLabels: Record<string, string> = {
 
 /** Common languages for translation UI. Code → Name. */
 const LANGUAGES: Record<string, string> = {
-  es: 'Spanish',
-  fr: 'French',
-  de: 'German',
-  it: 'Italian',
-  pt: 'Portuguese',
-  ru: 'Russian',
-  ja: 'Japanese',
-  zh: 'Chinese',
-  ko: 'Korean',
-  ar: 'Arabic',
-  hi: 'Hindi',
-  nl: 'Dutch',
-  pl: 'Polish',
-  sv: 'Swedish',
-  da: 'Danish',
-  no: 'Norwegian',
-  fi: 'Finnish',
-  el: 'Greek',
-  tr: 'Turkish',
-  cs: 'Czech',
-  th: 'Thai',
-  vi: 'Vietnamese',
-  id: 'Indonesian',
-  ms: 'Malay',
+  /* Europe */
+  es: 'Spanish', fr: 'French', de: 'German', it: 'Italian', pt: 'Portuguese',
+  ru: 'Russian', nl: 'Dutch', pl: 'Polish', sv: 'Swedish', da: 'Danish',
+  no: 'Norwegian', fi: 'Finnish', el: 'Greek', tr: 'Turkish', cs: 'Czech',
+  /* Asia */
+  ja: 'Japanese', zh: 'Chinese', ko: 'Korean', hi: 'Hindi', th: 'Thai',
+  vi: 'Vietnamese', id: 'Indonesian', ms: 'Malay',
+  /* Middle East */
+  ar: 'Arabic', he: 'Hebrew', fa: 'Persian',
+  /* Africa */
+  sw: 'Swahili', yo: 'Yoruba', ha: 'Hausa', ig: 'Igbo',
+  am: 'Amharic', so: 'Somali', zu: 'Zulu', xh: 'Xhosa',
+  sn: 'Shona', wo: 'Wolof', bm: 'Bambara', ti: 'Tigrinya', af: 'Afrikaans',
 }
 
 export function ConfigPanel() {

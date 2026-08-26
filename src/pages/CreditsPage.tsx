@@ -1,9 +1,9 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Zap, Plus, TrendingUp, History as HistoryIcon, ArrowRight, Coins } from 'lucide-react'
 import { useCreditStore } from '../store/creditStore'
 import { CreditTopUp } from '../components/credits/CreditTopUp'
-import { formatCurrency, creditsToTokens, formatTokens } from '../utils/credits'
+import { formatCurrency, creditsToTokens, formatTokens, fetchExchangeRates } from '../utils/credits'
 
 export function CreditsPage() {
   const navigate = useNavigate()
@@ -14,6 +14,30 @@ export function CreditsPage() {
 
   const [showTopUp, setShowTopUp] = useState(false)
   const [reason, setReason] = useState('')
+  const [rates, setRates] = useState<Record<string, number> | null>(null)
+  const [ratesLoading, setRatesLoading] = useState(false)
+
+  useEffect(() => {
+    const loadRates = async () => {
+      const completed = transactions.filter(t => t.status === 'completed')
+      if (completed.length === 0) return
+      const currencies = new Set(completed.map(t => t.currency))
+      if (currencies.size <= 1 && currencies.has('USD')) {
+        setRates({ USD: 1 })
+        return
+      }
+      try {
+        setRatesLoading(true)
+        const fetchedRates = await fetchExchangeRates()
+        setRates(fetchedRates)
+      } catch {
+        setRates({ USD: 1 }) // fallback: treat everything as USD
+      } finally {
+        setRatesLoading(false)
+      }
+    }
+    loadRates()
+  }, [transactions])
 
   const onBuy = useCallback((r = '') => {
     setReason(r)
@@ -21,9 +45,13 @@ export function CreditsPage() {
   }, [])
 
   const completedCount = transactions.filter(t => t.status === 'completed').length
-  const totalSpentCents = transactions
+  const totalSpentUsdCents = transactions
     .filter(t => t.status === 'completed')
-    .reduce((sum, t) => sum + t.amountPaid, 0)
+    .reduce((sum, t) => {
+      const rate = rates?.[t.currency] ?? 1 // fallback to USD if rate missing
+      const usdCents = (t.amountPaid / rate) * 100 // convert to USD cents
+      return sum + usdCents
+    }, 0)
 
   return (
     <div className="page-container">
@@ -90,7 +118,7 @@ export function CreditsPage() {
             <span className="text-xs text-n8n-gray-light uppercase tracking-wider">Total Spent</span>
           </div>
           <div className="text-xl font-bold text-white">
-            {formatCurrency(totalSpentCents / 100, 'USD')}
+            {ratesLoading ? '...' : formatCurrency(totalSpentUsdCents / 100, 'USD')}
           </div>
         </div>
       </div>
