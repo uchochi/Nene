@@ -45,6 +45,7 @@ const LANGUAGES: Record<string, string> = {
   sw: 'Swahili', yo: 'Yoruba', ha: 'Hausa', ig: 'Igbo',
   am: 'Amharic', so: 'Somali', zu: 'Zulu', xh: 'Xhosa',
   sn: 'Shona', wo: 'Wolof', bm: 'Bambara', ti: 'Tigrinya', af: 'Afrikaans',
+  pcm: 'Pidgin',
 }
 
 export function ConfigPanel() {
