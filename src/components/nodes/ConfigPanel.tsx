@@ -36,16 +36,30 @@ const LANGUAGES: Record<string, string> = {
   es: 'Spanish', fr: 'French', de: 'German', it: 'Italian', pt: 'Portuguese',
   ru: 'Russian', nl: 'Dutch', pl: 'Polish', sv: 'Swedish', da: 'Danish',
   no: 'Norwegian', fi: 'Finnish', el: 'Greek', tr: 'Turkish', cs: 'Czech',
+  uk: 'Ukrainian', ro: 'Romanian', hu: 'Hungarian', bg: 'Bulgarian', hr: 'Croatian',
+  sk: 'Slovak', sl: 'Slovenian', sr: 'Serbian', lt: 'Lithuanian', lv: 'Latvian',
+  et: 'Estonian', is: 'Icelandic', ga: 'Irish', ca: 'Catalan', eu: 'Basque',
   /* Asia */
   ja: 'Japanese', zh: 'Chinese', ko: 'Korean', hi: 'Hindi', th: 'Thai',
   vi: 'Vietnamese', id: 'Indonesian', ms: 'Malay',
-  /* Middle East */
+  bn: 'Bengali', ta: 'Tamil', te: 'Telugu', mr: 'Marathi', gu: 'Gujarati',
+  kn: 'Kannada', ml: 'Malayalam', pa: 'Punjabi', ur: 'Urdu', ne: 'Nepali',
+  si: 'Sinhala', km: 'Khmer', lo: 'Lao', my: 'Burmese', mn: 'Mongolian',
+  /* Middle East & Central Asia */
   ar: 'Arabic', he: 'Hebrew', fa: 'Persian',
+  kk: 'Kazakh', uz: 'Uzbek', ky: 'Kyrgyz', ps: 'Pashto', ku: 'Kurdish',
   /* Africa */
   sw: 'Swahili', yo: 'Yoruba', ha: 'Hausa', ig: 'Igbo',
   am: 'Amharic', so: 'Somali', zu: 'Zulu', xh: 'Xhosa',
   sn: 'Shona', wo: 'Wolof', bm: 'Bambara', ti: 'Tigrinya', af: 'Afrikaans',
   pcm: 'Pidgin',
+  st: 'Sesotho', tn: 'Tswana', ts: 'Tsonga', lg: 'Luganda', rw: 'Kinyarwanda',
+  ny: 'Chichewa', mg: 'Malagasy', om: 'Oromo', ee: 'Ewe', ak: 'Akan',
+  ln: 'Lingala', nso: 'Sepedi', ss: 'Swati', ve: 'Venda', nd: 'Ndebele',
+  /* Other */
+  tl: 'Filipino', jw: 'Javanese', su: 'Sundanese', ceb: 'Cebuano',
+  ht: 'Haitian Creole', co: 'Corsican', fy: 'Frisian', gd: 'Scottish Gaelic',
+  mi: 'Maori', eo: 'Esperanto',
 }
 
 export function ConfigPanel() {
