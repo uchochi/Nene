@@ -8,7 +8,7 @@ Turn raw text, images, and audio into clean training data for AI models. This gu
 
 1. [Getting Started](#1-getting-started)
 2. [The Editor in 30 Seconds](#2-the-editor-in-30-seconds)
-3. [The 7 Nodes, In Order](#3-the-7-nodes-in-order)
+3. [The 8 Nodes, In Order](#3-the-8-nodes-in-order)
 4. [Example 1: Turn Jokes Into a Dataset](#4-example-1-turn-jokes-into-a-dataset)
 5. [Example 2: Get Text Out of an Image](#5-example-2-get-text-out-of-an-image)
 6. [Example 3: Translate Into Other Languages](#6-example-3-translate-into-other-languages)
@@ -59,32 +59,40 @@ Click any node to open its settings on the right. That's the whole app.
 
 ---
 
-## 3. The 7 Nodes, In Order
+## 3. The 8 Nodes, In Order
 
-The sidebar lists nodes in the order you'd normally connect them:
+The sidebar lists nodes in the order you'd normally connect them — a 4-step
+dataset pipeline: **Clean → Align → Structure → Label**:
 
 ```
 1 · INPUT
    📥 Input              Paste text, or upload images, audio, video, PDFs
 
-2 · STRUCTURE & ENRICH
-   🔧 Format             Splits your text into numbered entries
+2 · STEP 1: CLEAN
+   🧹 Clean              Scrub noise: HTML, URLs, emojis, duplicates, misspellings
+
+3 · STEP 2: ALIGN
+   🌐 Translate          Translate + verify one-to-one pairs & encoding
+
+4 · STEP 3: STRUCTURE
+   🔧 Format             Structure into JSONL, JSON, or CSV with consistent fields
+
+5 · STEP 4: LABEL
+   🏷️ Tag & Categorize   Add tags, sentiment labels, and named entities
+
+6 · ORGANIZE & ENRICH
+   📂 Group              Adds a group label (e.g., by language)
    🤖 AI Transform       AI reads each entry and adds a summary, topics, sentiment
 
-3 · ORGANIZE
-   🏷️ Tag & Categorize   Adds tags to each entry
-   📂 Group              Adds a group label (e.g., by language)
-
-4 · EXPAND
-   🌐 Translate          Duplicates entries into other languages
-
-5 · OUTPUT
+7 · OUTPUT
    📤 Output             Exports everything as JSONL, JSON, or CSV
 ```
 
-**Why this order?** The AI should read your content before tagging it (better tags), and translation should happen last (translate the finished version once, not every step along the way).
+**Why this order?** Clean the noise first so AI learns the right patterns, then
+align translations one-to-one, then structure into labelled jars, then add the
+labels that become your training signal.
 
-You don't need all 7. A minimal workflow is just **Input → Format → Output**.
+You don't need all 8. A minimal workflow is just **Input → Format → Output**.
 
 ---
 

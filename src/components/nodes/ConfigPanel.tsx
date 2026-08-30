@@ -2,7 +2,7 @@ import { useCallback, useState, useRef, type ChangeEvent, type DragEvent } from 
 import { useWorkflowStore, type NodeType, type NodeConfig } from '../../store/workflowStore'
 import type {
   InputNodeConfig, FormatNodeConfig, TagNodeConfig, GroupNodeConfig,
-  TranslateNodeConfig, OutputNodeConfig, AITransformNodeConfig,
+  TranslateNodeConfig, OutputNodeConfig, AITransformNodeConfig, CleanNodeConfig,
 } from '../../store/workflowStore'
 import { useAuthStore } from '../../store/authStore'
 import { X, Trash2, Upload, AlertCircle, FileText, CheckCircle2, ChevronDown, ChevronRight, Check } from 'lucide-react'
@@ -12,6 +12,7 @@ import { isSupportedMime, type MediaAsset } from '../../types/media'
 
 const nodeIcons: Record<string, string> = {
   input: '📥',
+  clean: '🧹',
   format: '🔧',
   tag: '🏷️',
   group: '📂',
@@ -22,6 +23,7 @@ const nodeIcons: Record<string, string> = {
 
 const nodeLabels: Record<string, string> = {
   input: 'Input Config',
+  clean: 'Clean Config',
   format: 'Format Config',
   tag: 'Tag & Categorize Config',
   group: 'Group Config',
@@ -190,6 +192,7 @@ export function ConfigPanel() {
               >
                 <option value="jsonl">JSONL</option>
                 <option value="json">JSON</option>
+                <option value="csv">CSV</option>
               </select>
             </div>
             <div className="flex items-center gap-2">
@@ -204,6 +207,36 @@ export function ConfigPanel() {
                 Include Metadata
               </label>
             </div>
+          </>
+        )}
+
+        {nodeType === 'clean' && (
+          <>
+            <div className="text-xs text-n8n-gray-light mb-2">
+              Step 1 · Data Cleaning — scrub noise so AI learns the right patterns.
+            </div>
+            {([
+              ['removeHtml', 'Remove HTML tags'],
+              ['removeUrls', 'Remove URLs'],
+              ['removeEmojis', 'Remove emojis'],
+              ['collapseWhitespace', 'Collapse extra whitespace'],
+              ['normalizeRepeats', 'Normalize repeated chars (loooove → love)'],
+              ['fixSpelling', 'Fix common misspellings (u → you)'],
+              ['dedupe', 'Remove duplicate rows'],
+            ] as const).map(([field, label]) => (
+              <div key={field} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id={`clean-${field}`}
+                  className="accent-n8n-orange"
+                  checked={(config as CleanNodeConfig)[field] ?? true}
+                  onChange={e => update(field, e.target.checked)}
+                />
+                <label htmlFor={`clean-${field}`} className="text-sm text-n8n-gray-light">
+                  {label}
+                </label>
+              </div>
+            ))}
           </>
         )}
 
@@ -228,6 +261,30 @@ export function ConfigPanel() {
               />
               <label htmlFor="autoTag" className="text-sm text-n8n-gray-light">
                 Auto-tag content
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="sentiment"
+                className="accent-n8n-orange"
+                checked={(config as TagNodeConfig).sentiment ?? false}
+                onChange={e => update('sentiment', e.target.checked)}
+              />
+              <label htmlFor="sentiment" className="text-sm text-n8n-gray-light">
+                Add sentiment label (Positive / Negative / Neutral)
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="entities"
+                className="accent-n8n-orange"
+                checked={(config as TagNodeConfig).entities ?? false}
+                onChange={e => update('entities', e.target.checked)}
+              />
+              <label htmlFor="entities" className="text-sm text-n8n-gray-light">
+                Extract named entities (people, places, orgs)
               </label>
             </div>
           </>
@@ -300,6 +357,18 @@ export function ConfigPanel() {
               />
               <label htmlFor="preserveMechanics" className="text-sm text-n8n-gray-light">
                 Preserve humor mechanics
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="verifyAlignment"
+                className="accent-n8n-orange"
+                checked={(config as TranslateNodeConfig).verifyAlignment ?? true}
+                onChange={e => update('verifyAlignment', e.target.checked)}
+              />
+              <label htmlFor="verifyAlignment" className="text-sm text-n8n-gray-light">
+                Verify alignment (one-to-one pairs + encoding)
               </label>
             </div>
           </>

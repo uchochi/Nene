@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isTMA } from '../../utils/tma'
 import {
-  ArrowRight, Workflow, Bot, FileJson, Zap, Languages, Tags,
+  ArrowRight, Workflow, FileJson, Zap, Languages, Tags,
   Sparkles, ChevronRight, Image as ImageIcon, Mic, GraduationCap, ShieldCheck, Coins,
 } from 'lucide-react'
 
@@ -33,23 +33,23 @@ const features = [
   },
   {
     icon: Workflow, color: '#2196F3', title: 'Visual Workflow Editor',
-    desc: 'Drag-and-drop 7 node types onto the canvas. The palette is ordered by pipeline stage so you always know what comes next.',
+    desc: 'Drag-and-drop 8 node types onto the canvas. The palette is ordered by pipeline stage — Clean → Align → Structure → Label — so you always know what comes next.',
   },
   {
     icon: Mic, color: '#00BCD4', title: 'Multimodal AI Processing',
     desc: 'OCR text extraction, audio transcription, image captioning, and structured Vision AI analysis — built right into the Input node.',
   },
   {
-    icon: Bot, color: '#E91E63', title: 'AI-Powered Transform',
-    desc: 'Content-agnostic analysis that adapts to whatever you feed it — summaries, key topics, sentiment, and Chain-of-Thought explanations.',
+    icon: Sparkles, color: '#8BC34A', title: 'Data Cleaning',
+    desc: 'Scrub away noise before training: strip HTML, URLs, and emojis, normalize repeated characters and misspellings, and remove duplicate rows.',
   },
   {
-    icon: Languages, color: '#00BCD4', title: 'Multi-Language',
-    desc: 'Translate datasets across 100+ languages. Puns and wordplay get adapted natively — not translated literally.',
+    icon: Languages, color: '#00BCD4', title: 'Multi-Language + Alignment',
+    desc: 'Translate datasets across 100 languages with one-to-one pair verification and encoding checks — special characters like ñ, é, ß, and 漢 stay intact.',
   },
   {
-    icon: Tags, color: '#FF9800', title: 'Smart Tagging',
-    desc: 'AI-generated tags tuned to your content, or a fast keyword engine across 14 categories. Define your own categories too.',
+    icon: Tags, color: '#FF9800', title: 'Smart Tagging & Labelling',
+    desc: 'AI-generated tags, sentiment labels (Positive / Negative / Neutral), and named entity extraction — the ground truth your model learns from.',
   },
   {
     icon: FileJson, color: '#F44336', title: 'Flexible Export',
@@ -66,16 +66,16 @@ const features = [
 ]
 
 const steps = [
-  { num: '01', title: 'Import', desc: 'Paste text or upload images, audio, video, and PDFs — OCR and transcription run automatically.', color: '#4CAF50' },
-  { num: '02', title: 'Build', desc: 'Connect nodes on a visual canvas. The palette guides you stage by stage: structure, enrich, organize, expand.', color: '#2196F3' },
-  { num: '03', title: 'Transform', desc: 'AI enriches every row — analysis, tags, groups, and translations with native-feeling wordplay.', color: '#E91E63' },
-  { num: '04', title: 'Export', desc: 'Download a clean JSONL, JSON, or CSV file ready for model fine-tuning.', color: '#F44336' },
+  { num: '01', title: 'Clean', desc: 'Scrub raw data — strip HTML, URLs, emojis, and duplicates so AI learns the right patterns, not the noise.', color: '#8BC34A' },
+  { num: '02', title: 'Align', desc: 'Verify translation pairs one-to-one and check encoding. Every row in one language has its exact partner in another.', color: '#00BCD4' },
+  { num: '03', title: 'Structure', desc: 'Convert messy text into JSONL, JSON, or CSV with consistent fields and IDs — labelled jars machines can read.', color: '#2196F3' },
+  { num: '04', title: 'Label', desc: 'Add category tags, sentiment labels, and named entities — the ground truth that becomes your training signal.', color: '#FF9800' },
 ]
 
 const stats = [
-  { value: '7', label: 'Node Types' },
+  { value: '8', label: 'Node Types' },
   { value: '4+', label: 'Media Formats' },
-  { value: '100+', label: 'Languages' },
+  { value: '100', label: 'Languages' },
   { value: '1M', label: 'Tokens per $10' },
 ]
 
@@ -165,13 +165,15 @@ export default function LandingPage() {
             <div className="flex items-center justify-between gap-3 overflow-x-auto pb-2">
               <FakeNode icon="📥" label="Input" sub="Text · Media · PDF" color="#4CAF50" delay={0} />
               <Connector delay={0.6} />
-              <FakeNode icon="🔧" label="Format" sub="Structure" color="#2196F3" delay={0.15} />
+              <FakeNode icon="🧹" label="Clean" sub="Scrub Noise" color="#8BC34A" delay={0.15} />
               <Connector delay={0.75} />
-              <FakeNode icon="🤖" label="AI Transform" sub="Analysis" color="#E91E63" delay={0.3} />
+              <FakeNode icon="🌐" label="Translate" sub="Align Pairs" color="#00BCD4" delay={0.3} />
               <Connector delay={0.9} />
-              <FakeNode icon="🏷️" label="Tag" sub="Auto-Extract" color="#FF9800" delay={0.45} />
+              <FakeNode icon="🔧" label="Format" sub="Structure" color="#2196F3" delay={0.45} />
               <Connector delay={1.05} />
-              <FakeNode icon="📤" label="Output" sub="JSONL Export" color="#F44336" delay={0.6} />
+              <FakeNode icon="🏷️" label="Tag" sub="Label + Sentiment" color="#FF9800" delay={0.6} />
+              <Connector delay={1.2} />
+              <FakeNode icon="📤" label="Output" sub="JSONL Export" color="#F44336" delay={0.75} />
             </div>
           </div>
         </div>
@@ -266,8 +268,8 @@ export default function LandingPage() {
               <span className="text-xs text-n8n-orange uppercase tracking-widest font-semibold">Example Output</span>
               <h2 className="text-3xl md:text-4xl font-bold mt-3 mb-4">Rich, Structured, Model-Ready</h2>
               <p className="text-n8n-gray-light max-w-lg mx-auto">
-                Upload a meme, a voice note, or a scanned doc — get back enriched rows with
-                extracted text, descriptions, topics, and sentiment.
+                Upload a meme, a voice note, or a scanned doc — get back cleaned, aligned,
+                structured rows with tags, sentiment, and entities.
               </p>
             </div>
           </Section>
@@ -286,8 +288,10 @@ export default function LandingPage() {
                   {'  '}<span className="text-n8n-orange">"image_description"</span>: <span className="text-node-input">"A cartoon dog sits calmly in a room engulfed in flames"</span>,{'\n'}
                   {'  '}<span className="text-n8n-orange">"summary"</span>: <span className="text-node-input">"Dark humor meme about stoic acceptance of chaos"</span>,{'\n'}
                   {'  '}<span className="text-n8n-orange">"key_topics"</span>: [<span className="text-node-input">"dark humor"</span>, <span className="text-node-input">"resilience"</span>, <span className="text-node-input">"internet culture"</span>],{'\n'}
-                  {'  '}<span className="text-n8n-orange">"sentiment"</span>: <span className="text-node-input">"ironic"</span>,{'\n'}
+                  {'  '}<span className="text-n8n-orange">"sentiment"</span>: <span className="text-node-input">"Positive"</span>,{'\n'}
+                  {'  '}<span className="text-n8n-orange">"entities"</span>: [<span className="text-node-input">"Dog"</span>],{'\n'}
                   {'  '}<span className="text-n8n-orange">"tags"</span>: [<span className="text-node-input">"humor"</span>, <span className="text-node-input">"meme"</span>, <span className="text-node-input">"irony"</span>],{'\n'}
+                  {'  '}<span className="text-n8n-orange">"alignment"</span>: <span className="text-node-input">{"{ aligned: true, pair_id: 'item_001:es' }"}</span>,{'\n'}
                   {'  '}<span className="text-n8n-orange">"explanation_for_ai"</span>: <span className="text-node-input">"The contrast between the dog's calm demeanor and the fire creates…"</span>{'\n'}
                   <span className="text-node-ai">{'}'}</span>
                 </code>

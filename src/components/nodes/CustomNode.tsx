@@ -5,6 +5,7 @@ import type { NodeType } from '../../store/workflowStore'
 
 const nodeIcons: Record<string, string> = {
   input: '📥',
+  clean: '🧹',
   format: '🔧',
   tag: '🏷️',
   group: '📂',

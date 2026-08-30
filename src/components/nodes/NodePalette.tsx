@@ -23,29 +23,40 @@ const paletteSections: PaletteSection[] = [
     ],
   },
   {
-    title: '2 · Structure & Enrich',
+    title: '2 · Step 1: Clean',
     items: [
-      { type: 'format', label: 'Format', icon: '🔧', color: '#2196F3', description: 'Structure raw text into items', step: 2 },
-      { type: 'ai', label: 'AI Transform', icon: '🤖', color: '#E91E63', description: 'AI analyzes & enriches content', step: 3 },
+      { type: 'clean', label: 'Clean', icon: '🧹', color: '#8BC34A', description: 'Scrub noise: HTML, emojis, URLs, duplicates', step: 2 },
     ],
   },
   {
-    title: '3 · Organize',
+    title: '3 · Step 2: Align',
     items: [
-      { type: 'tag', label: 'Tag & Categorize', icon: '🏷️', color: '#FF9800', description: 'Add tags based on content', step: 4 },
-      { type: 'group', label: 'Group', icon: '📂', color: '#9C27B0', description: 'Group items by field', step: 5 },
+      { type: 'translate', label: 'Translate', icon: '🌐', color: '#00BCD4', description: 'Translate + verify one-to-one pairs', step: 3 },
     ],
   },
   {
-    title: '4 · Expand',
+    title: '4 · Step 3: Structure',
     items: [
-      { type: 'translate', label: 'Translate', icon: '🌐', color: '#00BCD4', description: 'Translate to target languages', step: 6 },
+      { type: 'format', label: 'Format', icon: '🔧', color: '#2196F3', description: 'Structure into JSONL / JSON / CSV', step: 4 },
     ],
   },
   {
-    title: '5 · Output',
+    title: '5 · Step 4: Label',
     items: [
-      { type: 'output', label: 'Output', icon: '📤', color: '#F44336', description: 'Export as JSONL / JSON / CSV', step: 7 },
+      { type: 'tag', label: 'Tag & Categorize', icon: '🏷️', color: '#FF9800', description: 'Add tags, sentiment & entities', step: 5 },
+    ],
+  },
+  {
+    title: '6 · Organize & Enrich',
+    items: [
+      { type: 'group', label: 'Group', icon: '📂', color: '#9C27B0', description: 'Group items by field', step: 6 },
+      { type: 'ai', label: 'AI Transform', icon: '🤖', color: '#E91E63', description: 'AI analyzes & enriches content', step: 7 },
+    ],
+  },
+  {
+    title: '7 · Output',
+    items: [
+      { type: 'output', label: 'Output', icon: '📤', color: '#F44336', description: 'Export as JSONL / JSON / CSV', step: 8 },
     ],
   },
 ]

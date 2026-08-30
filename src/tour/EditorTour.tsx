@@ -15,7 +15,7 @@ interface EditorTourProps {
  * Interactive walkthrough for the workflow editor.
  *
  * - Auto-starts once on first visit to any editor page.
- * - Seeds a sample Input → Format → Output workflow on an empty canvas so
+ * - Seeds a sample Input → Clean → Format → Output workflow on an empty canvas so
  *   the tour can point at real nodes, connections, and open the config panel.
  * - Replayable from Settings → Guided Tours.
  */
@@ -90,7 +90,7 @@ export function EditorTour({ setPaletteOpen }: EditorTourProps) {
             popover: {
               title: 'Nodes — your building blocks',
               description:
-                'Click a node (or drag it onto the canvas) to add it. They\'re ordered by pipeline stage: <b>Input → Structure & Enrich → Organize → Expand → Output</b>.',
+                'Click a node (or drag it onto the canvas) to add it. They\'re ordered by pipeline stage: <b>Input → Clean → Align → Structure → Label → Output</b>.',
               side: 'right' as const,
               align: 'start' as const,
             },
@@ -115,7 +115,7 @@ export function EditorTour({ setPaletteOpen }: EditorTourProps) {
             popover: {
               title: 'The node palette',
               description:
-                'Tap a node to add it to the canvas. They\'re ordered by pipeline stage: <b>Input → Structure & Enrich → Organize → Expand → Output</b>. Tap Next to see them in action — we\'ll close this menu for you.',
+                'Tap a node to add it to the canvas. They\'re ordered by pipeline stage: <b>Input → Clean → Align → Structure → Label → Output</b>. Tap Next to see them in action — we\'ll close this menu for you.',
               side: 'right',
               align: 'start',
               // close the drawer so the canvas step below is actually visible
@@ -132,7 +132,7 @@ export function EditorTour({ setPaletteOpen }: EditorTourProps) {
           title: 'The canvas',
           description:
             demo
-              ? 'This is your sample workflow: <b>Input → Format → Output</b>. The animated lines are connections — data flows through them. Drag nodes to rearrange, pinch or scroll to zoom.'
+              ? 'This is your sample workflow: <b>Input → Clean → Format → Output</b>. The animated lines are connections — data flows through them. Drag nodes to rearrange, pinch or scroll to zoom.'
               : 'Your nodes appear here. Drag them around to rearrange, pinch or scroll to zoom.',
           side: 'top',
           align: 'center',

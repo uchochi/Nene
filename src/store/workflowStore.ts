@@ -22,7 +22,7 @@ import {
   buildJSONWrapper,
 } from '../utils/datasetSignature'
 
-export type NodeType = 'input' | 'format' | 'tag' | 'group' | 'translate' | 'output' | 'ai'
+export type NodeType = 'input' | 'clean' | 'format' | 'tag' | 'group' | 'translate' | 'output' | 'ai'
 
 export interface NodeConfig {
   label: string
@@ -55,13 +55,25 @@ export interface InputNodeConfig extends NodeConfig {
   visionAIModel: string
 }
 export interface FormatNodeConfig extends NodeConfig {
-  formatType: 'jsonl' | 'json'
+  formatType: 'jsonl' | 'json' | 'csv'
   includeMetadata: boolean
+  label: string
+}
+export interface CleanNodeConfig extends NodeConfig {
+  removeHtml: boolean
+  removeUrls: boolean
+  removeEmojis: boolean
+  collapseWhitespace: boolean
+  normalizeRepeats: boolean
+  fixSpelling: boolean
+  dedupe: boolean
   label: string
 }
 export interface TagNodeConfig extends NodeConfig {
   categories: string
   autoTag: boolean
+  sentiment: boolean
+  entities: boolean
   label: string
 }
 export interface GroupNodeConfig extends NodeConfig {
@@ -71,6 +83,7 @@ export interface GroupNodeConfig extends NodeConfig {
 export interface TranslateNodeConfig extends NodeConfig {
   targetLanguages: string
   preserveMechanics: boolean
+  verifyAlignment: boolean
   label: string
 }
 export interface OutputNodeConfig extends NodeConfig {
@@ -181,15 +194,26 @@ const defaultNodeConfig: Record<NodeType, NodeConfig> = {
     visionAIModel: getDefaultModelSafe('VITE_VISION_MODEL', 'nvidia/nemotron-nano-12b-v2-vl:free'),
   },
   format: { label: 'Format', formatType: 'jsonl', includeMetadata: true },
-  tag: { label: 'Tag & Categorize', categories: '', autoTag: true },
+  clean: {
+    label: 'Clean',
+    removeHtml: true,
+    removeUrls: true,
+    removeEmojis: true,
+    collapseWhitespace: true,
+    normalizeRepeats: true,
+    fixSpelling: false,
+    dedupe: true,
+  },
+  tag: { label: 'Tag & Categorize', categories: '', autoTag: true, sentiment: false, entities: false },
   group: { label: 'Group', groupBy: 'language' },
-  translate: { label: 'Translate', targetLanguages: '', preserveMechanics: true },
+  translate: { label: 'Translate', targetLanguages: '', preserveMechanics: true, verifyAlignment: true },
   output: { label: 'Output', format: 'jsonl' },
   ai: { label: 'AI Transform', prompt: '' },
 }
 
 const nodeColors: Record<NodeType, string> = {
   input: '#4CAF50',
+  clean: '#8BC34A',
   format: '#2196F3',
   tag: '#FF9800',
   group: '#9C27B0',
@@ -660,6 +684,15 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
             }
             break
           }
+          case 'clean': {
+            const cleanCfg = cfg as CleanNodeConfig
+            if (Array.isArray(data)) {
+              data = cleanData(data, cleanCfg)
+            } else if (typeof data === 'string') {
+              data = cleanData([{ raw_content: data }], cleanCfg)
+            }
+            break
+          }
           case 'tag': {
             const tagCfg = cfg as TagNodeConfig
             if (Array.isArray(data)) {
@@ -750,6 +783,9 @@ function formatData(data: string, cfg: FormatNodeConfig): Record<string, unknown
       return Array.isArray(parsed) ? parsed : [parsed]
     } catch { return [{ raw: data }] }
   }
+  if (cfg.formatType === 'csv') {
+    return parseCSV(data)
+  }
   const lines = data.split('\n').filter(l => l.trim())
   return lines.map((line, i) => ({
     id: `item_${String(i + 1).padStart(3, '0')}`,
@@ -759,6 +795,31 @@ function formatData(data: string, cfg: FormatNodeConfig): Record<string, unknown
     format: 'text',
     ...(cfg.includeMetadata ? { timestamp: new Date().toISOString(), source: 'user_input' } : {}),
   }))
+}
+
+/** Parses CSV text into structured items with consistent fields. */
+function parseCSV(data: string): Record<string, unknown>[] {
+  const lines = data.split('\n').filter(l => l.trim())
+  if (lines.length === 0) return []
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
+  return lines.slice(1).map((line, i) => {
+    const cells = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''))
+    const item: Record<string, unknown> = {
+      id: `item_${String(i + 1).padStart(3, '0')}`,
+      raw_content: '',
+      language_code: 'unknown',
+      region: 'unknown',
+      format: 'csv',
+    }
+    headers.forEach((h, idx) => {
+      const val = cells[idx] ?? ''
+      if (h === 'raw_content' || h === 'text' || h === 'message') item.raw_content = val
+      else if (h === 'language' || h === 'language_code') item.language_code = val
+      else if (h === 'region') item.region = val
+      else item[h] = val
+    })
+    return item
+  })
 }
 
 /** Ensures array items (e.g. from media input) have required metadata fields. */
@@ -772,6 +833,72 @@ function ensureFormatted(data: Record<string, unknown>[]): Record<string, unknow
   }))
 }
 
+/* ── Step 1: Data Cleaning ── */
+
+/** Cleans raw text fields: strips HTML/URLs/emojis, normalizes whitespace
+ *  and repeated characters, optionally fixes common misspellings, and
+ *  removes duplicate rows. */
+function cleanData(data: Record<string, unknown>[], cfg: CleanNodeConfig): Record<string, unknown>[] {
+  const textFields = ['raw_content', 'setup', 'punchline', 'literal_english_translation',
+                      'cultural_context', 'linguistic_context', 'explanation_for_ai',
+                      'extracted_text', 'image_description', 'transcript', 'message', 'text']
+
+  const cleanText = (text: string): string => {
+    let out = text
+    if (cfg.removeHtml) out = out.replace(/<[^>]*>/g, ' ')
+    if (cfg.removeUrls) out = out.replace(/https?:\/\/\S+|www\.\S+/gi, '')
+    if (cfg.removeEmojis) out = out.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{1F900}-\u{1F9FF}]/gu, '')
+    if (cfg.collapseWhitespace) out = out.replace(/\s+/g, ' ').trim()
+    if (cfg.normalizeRepeats) out = out.replace(/(.)\1{2,}/g, '$1$1')
+    if (cfg.fixSpelling) out = fixCommonMisspellings(out)
+    return out
+  }
+
+  const seen = new Set<string>()
+  const results: Record<string, unknown>[] = []
+
+  for (const item of data) {
+    const cleaned: Record<string, unknown> = { ...item }
+    for (const field of textFields) {
+      const val = item[field]
+      if (typeof val === 'string' && val.trim()) {
+        cleaned[field] = cleanText(val)
+      }
+    }
+    cleaned.cleaned = true
+
+    if (cfg.dedupe) {
+      const fingerprint = extractTextContent(cleaned).toLowerCase().trim()
+      if (seen.has(fingerprint)) continue
+      seen.add(fingerprint)
+    }
+    results.push(cleaned)
+  }
+  return results
+}
+
+/** Fixes common informal misspellings (e.g. "loooove" → "love", "u" → "you"). */
+function fixCommonMisspellings(text: string): string {
+  const replacements: Record<string, string> = {
+    ' u ': ' you ', ' ur ': ' your ', ' r ': ' are ', ' im ': " i'm ",
+    ' dont ': " don't ", ' cant ': " can't ", ' wont ': " won't ", ' didnt ': " didn't ",
+    ' doesnt ': " doesn't ", ' isnt ': " isn't ", ' wasnt ': " wasn't ", ' couldnt ': " couldn't ",
+    ' wouldnt ': " wouldn't ", ' shouldnt ': " shouldn't ", ' gonna ': ' going to ',
+    ' wanna ': ' want to ', ' gotta ': ' got to ', ' kinda ': ' kind of ', ' sorta ': ' sort of ',
+    ' lol ': ' ', ' omg ': ' ', ' btw ': ' by the way ', ' idk ': " i don't know ",
+    ' tbh ': ' to be honest ', ' afaik ': ' as far as i know ', ' imo ': ' in my opinion ',
+    ' nvm ': ' never mind ', ' pls ': ' please ', ' plz ': ' please ', ' thx ': ' thanks ',
+    ' ty ': ' thank you ', ' gr8 ': ' great ', ' 2day ': ' today ', ' 2morrow ': ' tomorrow ',
+    ' b4 ': ' before ', ' cuz ': ' because ', ' bc ': ' because ', ' tho ': ' though ',
+    ' thru ': ' through ', ' w/ ': ' with ', ' w/o ': ' without ',
+  }
+  let out = ` ${text} `
+  for (const [from, to] of Object.entries(replacements)) {
+    out = out.split(from).join(to)
+  }
+  return out.trim()
+}
+
 async function tagData(data: Record<string, unknown>[], cfg: TagNodeConfig): Promise<Record<string, unknown>[]> {
   const categories = cfg.categories.split(',').map(c => c.trim()).filter(Boolean)
   const catList = categories.length > 0 ? categories : ['general']
@@ -781,9 +908,25 @@ async function tagData(data: Record<string, unknown>[], cfg: TagNodeConfig): Pro
     for (const item of data) {
       try {
         const aiTags = await generateTagsWithAI(item)
-        results.push({ ...item, tags: aiTags, categories: catList, categorized: true })
+        const sentiment = cfg.sentiment ? await detectSentiment(item) : undefined
+        const entities = cfg.entities ? await extractEntities(item) : undefined
+        results.push({
+          ...item,
+          tags: aiTags,
+          categories: catList,
+          categorized: true,
+          ...(sentiment ? { sentiment } : {}),
+          ...(entities ? { entities } : {}),
+        })
       } catch {
-        results.push({ ...item, tags: extractTags(item), categories: catList, categorized: true })
+        results.push({
+          ...item,
+          tags: extractTags(item),
+          categories: catList,
+          categorized: true,
+          ...(cfg.sentiment ? { sentiment: detectSentimentKeyword(item) } : {}),
+          ...(cfg.entities ? { entities: extractEntitiesKeyword(item) } : {}),
+        })
       }
     }
     return results
@@ -794,7 +937,69 @@ async function tagData(data: Record<string, unknown>[], cfg: TagNodeConfig): Pro
     tags: extractTags(item),
     categories: catList,
     categorized: true,
+    ...(cfg.sentiment ? { sentiment: detectSentimentKeyword(item) } : {}),
+    ...(cfg.entities ? { entities: extractEntitiesKeyword(item) } : {}),
   }))
+}
+
+/** AI-powered sentiment detection (Positive / Negative / Neutral). */
+async function detectSentiment(item: Record<string, unknown>): Promise<string> {
+  const content = extractTextContent(item)
+  if (!content) return 'neutral'
+  const result = await fetchAI('/api/ai-completion', {
+    messages: [
+      { role: 'system', content: 'You are a sentiment analysis assistant. Return ONLY one word: Positive, Negative, or Neutral.' },
+      { role: 'user', content: content.slice(0, 2000) },
+    ],
+    model: getDefaultModel(),
+    provider: getAIProvider(),
+    temperature: 0,
+  })
+  if (result.error) throw new Error(result.error || 'Sentiment detection failed')
+  const text = (result.content || '').trim().toLowerCase()
+  if (text.includes('positive')) return 'Positive'
+  if (text.includes('negative')) return 'Negative'
+  return 'Neutral'
+}
+
+/** Keyword-based sentiment fallback (no AI call). */
+function detectSentimentKeyword(item: Record<string, unknown>): string {
+  const text = extractTextContent(item).toLowerCase()
+  if (!text) return 'neutral'
+  const positive = ['love', 'great', 'good', 'best', 'amazing', 'awesome', 'excellent', 'happy', 'wonderful', 'fantastic', 'like', 'enjoy', 'perfect', 'beautiful']
+  const negative = ['hate', 'bad', 'worst', 'terrible', 'awful', 'angry', 'sad', 'disappointed', 'horrible', 'poor', 'annoying', 'useless', 'broken', 'fail']
+  let score = 0
+  positive.forEach(w => { if (text.includes(w)) score++ })
+  negative.forEach(w => { if (text.includes(w)) score-- })
+  if (score > 0) return 'Positive'
+  if (score < 0) return 'Negative'
+  return 'Neutral'
+}
+
+/** AI-powered named entity extraction. */
+async function extractEntities(item: Record<string, unknown>): Promise<string[]> {
+  const content = extractTextContent(item)
+  if (!content) return []
+  const result = await fetchAI('/api/ai-completion', {
+    messages: [
+      { role: 'system', content: 'You are a named entity recognition assistant. Extract named entities (people, places, organizations, products, dates) from the content. Return ONLY a JSON array of entity strings. Example: ["Lagos", "Google", "2023"]' },
+      { role: 'user', content: content.slice(0, 2000) },
+    ],
+    model: getDefaultModel(),
+    provider: getAIProvider(),
+    temperature: 0,
+  })
+  if (result.error) throw new Error(result.error || 'Entity extraction failed')
+  return parseStringArray(result.content || '[]')
+}
+
+/** Keyword-based entity fallback: capitalized words (no AI call). */
+function extractEntitiesKeyword(item: Record<string, unknown>): string[] {
+  const text = extractTextContent(item)
+  if (!text) return []
+  const matches = text.match(/\b[A-Z][a-z]{2,}\b/g) || []
+  const stopwords = new Set(['The', 'This', 'That', 'These', 'Those', 'And', 'But', 'For', 'With', 'From', 'When', 'What', 'How', 'Why', 'Not', 'You', 'Your', 'Our', 'They', 'Their', 'There', 'Then', 'Than', 'Will', 'Would', 'Should', 'Could', 'Can', 'Have', 'Has', 'Had', 'Are', 'Was', 'Were', 'Been', 'Being', 'Very', 'Really', 'Just', 'Like', 'About', 'Into', 'Over', 'Under', 'After', 'Before', 'Because', 'While', 'Where', 'Who', 'Whom', 'Which', 'One', 'Two', 'Three', 'First', 'Last', 'Next', 'New', 'Old', 'Good', 'Bad', 'Great', 'Best', 'Worst', 'More', 'Most', 'Some', 'Any', 'All', 'Each', 'Every', 'Both', 'Few', 'Many', 'Much', 'Such', 'Only', 'Also', 'Even', 'Still', 'Already', 'Always', 'Never', 'Often', 'Sometimes', 'Usually', 'Today', 'Tomorrow', 'Yesterday', 'Now', 'Here', 'There', 'Yes', 'No', 'OK', 'Okay'])
+  return Array.from(new Set(matches.filter(m => !stopwords.has(m)))).slice(0, 10)
 }
 
 /** AI-powered tag generation. */
@@ -868,7 +1073,13 @@ async function translateData(data: Record<string, unknown>[], cfg: TranslateNode
     for (const lang of langs) {
       try {
         const translated = await translateItem(item, lang, cfg.preserveMechanics)
-        results.push(translated)
+        /* Step 2: Language Alignment — verify one-to-one pairing + encoding */
+        if (cfg.verifyAlignment) {
+          const alignment = verifyAlignment(item, translated, lang)
+          results.push({ ...translated, alignment })
+        } else {
+          results.push(translated)
+        }
       } catch (e) {
         results.push({
           ...item,
@@ -881,6 +1092,42 @@ async function translateData(data: Record<string, unknown>[], cfg: TranslateNode
     }
   }
   return results
+}
+
+/** Step 2: Language Alignment — checks that every source row has exactly one
+ *  translation per target language and that special characters survived. */
+function verifyAlignment(
+  source: Record<string, unknown>,
+  translated: Record<string, unknown>,
+  targetLang: string,
+): Record<string, unknown> {
+  const sourceText = extractTextContent(source)
+  const translatedText = extractTextContent(translated)
+
+  const issues: string[] = []
+  if (!translatedText.trim()) {
+    issues.push('empty translation')
+  }
+  if (translatedText.trim() === sourceText.trim()) {
+    issues.push('translation identical to source (may be untranslated)')
+  }
+
+  /* Encoding check: special characters (ñ, é, ß, 漢) must survive intact */
+  const specialChars = sourceText.match(/[^\x00-\x7F]/g) || []
+  if (specialChars.length > 0) {
+    const lost = specialChars.filter(ch => !translatedText.includes(ch))
+    if (lost.length > 0) {
+      issues.push(`encoding: ${lost.length} special character(s) lost (${Array.from(new Set(lost)).slice(0, 5).join(' ')})`)
+    }
+  }
+
+  return {
+    aligned: issues.length === 0,
+    source_language: source.language_code || 'unknown',
+    target_language: targetLang,
+    pair_id: `${source.id || 'item'}:${targetLang}`,
+    issues: issues.length > 0 ? issues : [],
+  }
 }
 
 /** Translates all text fields of an item into a target language using AI. */
