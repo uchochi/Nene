@@ -8,6 +8,7 @@ import {
 } from '../../utils/credits'
 import { loadFlutterwave, makeTxRef } from '../../utils/flutterwave'
 import { PAYMENT_COUNTRIES, type PaymentCountry, type PaymentMethod } from '../../data/paymentCountries'
+import { BankTransferCheckout } from './BankTransferCheckout'
 import { X, Check, ChevronRight, Zap, Loader2, AlertCircle, ArrowLeft, Tag } from 'lucide-react'
 
 /* ------------------------------------------------------- */
@@ -57,6 +58,10 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
 
   const paystackRef = useRef<PaystackPop | null>(null)
   const processingRef = useRef(false)
+
+  /* branded bank-transfer checkout state */
+  const [bankTransferOpen, setBankTransferOpen] = useState(false)
+  const [bankTransferRef, setBankTransferRef] = useState('')
 
   /* derived: discount only via coupon */
   const effectiveDiscount = appliedCoupon?.discount ?? 0
@@ -308,6 +313,13 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
       ? paystackAmount(discountedCents, rate)
       : flutterwaveAmount(discountedCents, rate)
 
+    /* Branded Paystack Bank Transfer checkout (NG only) */
+    if (selectedCountry.provider === 'paystack' && method.key === 'bank_transfer') {
+      setBankTransferRef(makeTxRef('ooguy'))
+      setBankTransferOpen(true)
+      return
+    }
+
     setStatus('processing')
     setErrorMsg('')
     processingRef.current = true
@@ -336,6 +348,7 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
   if (!open) return null
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="bg-n8n-dark-2 border border-n8n-dark-4 rounded-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
         {/* header */}
@@ -573,5 +586,30 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
         </div>
       </div>
     </div>
+
+    {/* Branded Paystack Bank Transfer checkout */}
+    {selectedPlan && selectedCountry && user && (
+      <BankTransferCheckout
+        open={bankTransferOpen}
+        onClose={() => setBankTransferOpen(false)}
+        onBack={() => setBankTransferOpen(false)}
+        email={user.email!}
+        amount={selectedCountry.provider === 'paystack'
+          ? paystackAmount(hasDiscount ? Math.round(getPlanPrice(selectedPlan, isFirst) * (1 - effectiveDiscount)) : getPlanPrice(selectedPlan, isFirst), rates[selectedCountry.currency] || 1)
+          : 0}
+        currency={selectedCountry.currency}
+        reference={bankTransferRef}
+        planId={selectedPlan.id}
+        credits={selectedPlan.credits}
+        userId={user.id}
+        onSuccess={() => {
+          setBankTransferOpen(false)
+          syncWithServer(user.id).then(() => {
+            setStatus('success')
+          })
+        }}
+      />
+    )}
+    </>
   )
 }
