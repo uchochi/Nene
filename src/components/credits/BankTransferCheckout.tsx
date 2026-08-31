@@ -111,8 +111,10 @@ export function BankTransferCheckout({
   }, [open, details])
 
   /* ── 3. Poll Paystack until the transfer is confirmed ── */
+  const checkingRef = useRef(false)
   const checkStatus = useCallback(async () => {
-    if (!details || checking) return
+    if (!details || checkingRef.current) return
+    checkingRef.current = true
     setChecking(true)
     setPollError('')
     try {
@@ -121,6 +123,7 @@ export function BankTransferCheckout({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           provider: 'paystack',
+          verificationType: 'charge',
           reference: details.reference,
           userId,
           planId,
@@ -143,9 +146,10 @@ export function BankTransferCheckout({
     } catch (e) {
       setPollError(e instanceof Error ? e.message : 'Verification failed')
     } finally {
+      checkingRef.current = false
       setChecking(false)
     }
-  }, [details, checking, userId, planId, credits, amount, currency, onSuccess])
+  }, [details, userId, planId, credits, amount, currency, onSuccess])
 
   /* auto-poll every 8 seconds once details are loaded */
   useEffect(() => {
@@ -293,7 +297,7 @@ export function BankTransferCheckout({
               <div className="flex items-center justify-between px-1">
                 <div className="flex items-center gap-1.5 text-xs text-n8n-gray-light">
                   <Clock size={13} className="text-n8n-orange" />
-                  Expires in: <span className={`font-bold tabular-nums ${expired ? 'text-n8n-red' : 'text-n8n-red'}`}>
+                  Expires in: <span className="font-bold tabular-nums text-n8n-red">
                     {expired ? 'Expired' : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`}
                   </span>
                 </div>

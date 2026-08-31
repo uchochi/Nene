@@ -212,7 +212,13 @@ export function CreditTopUp({ open, onClose, reason }: CreditTopUpProps) {
         if (processingRef.current) {
           processingRef.current = false
           setStatus('error')
-          setErrorMsg(err.message || 'Transaction could not be loaded.')
+          const msg = err.message || 'Transaction could not be loaded.'
+          /* Surface the exact Paystack error and add an actionable hint when the
+             account/channel configuration is the likely cause. */
+          const channelHint = /no active channel|channel/i.test(msg)
+            ? ' This usually means the payment channel is not enabled on your Paystack account — check the Paystack dashboard (Settings → Payment Channels) and enable Card.'
+            : ''
+          setErrorMsg(msg + channelHint)
         }
       },
 

@@ -9,8 +9,10 @@ export async function OPTIONS() {
  * Dual-provider payment verification.
  *
  * POST body:
- *   provider: 'paystack'    → { reference, userId, planId, credits, amount, currency }
+ *   provider: 'paystack'    → { reference, verificationType, userId, planId, credits, amount, currency }
  *                              amount in SUBUNITS (kobo)
+ *                              verificationType: 'charge' (bank transfer via Create Charge API)
+ *                                                | 'transaction' (default, card via Initialize Transaction)
  *   provider: 'flutterwave' → { transactionId, txRef, userId, planId, credits, amount, currency }
  *                              amount in MAIN units
  *
@@ -33,6 +35,7 @@ export async function POST(req) {
     const {
       provider = 'paystack',
       reference,        /* paystack */
+      verificationType = 'transaction', /* paystack: 'charge' | 'transaction' */
       transactionId,    /* flutterwave */
       txRef,            /* flutterwave */
       userId, planId, credits, amount, currency,
@@ -63,10 +66,21 @@ export async function POST(req) {
         })
       }
 
-      const verifyRes = await fetch(
-        `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
-        { headers: { Authorization: `Bearer ${paystackSecretKey}` } },
-      )
+      /*
+       * Bank transfer charges are created via the Create Charge API, which
+       * returns a CHARGE reference. The correct manual verification for those
+       * is the Check Pending Charge endpoint (GET /charge/:reference), NOT
+       * transaction/verify. Card transactions (Initialize Transaction) use
+       * transaction/verify. We branch on verificationType.
+       */
+      const isCharge = verificationType === 'charge'
+      const verifyUrl = isCharge
+        ? `https://api.paystack.co/charge/${encodeURIComponent(reference)}`
+        : `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`
+
+      const verifyRes = await fetch(verifyUrl, {
+        headers: { Authorization: `Bearer ${paystackSecretKey}` },
+      })
 
       if (!verifyRes.ok) {
         const errText = await verifyRes.text()
@@ -78,7 +92,10 @@ export async function POST(req) {
 
       const verifyData = await verifyRes.json()
 
-      if (!verifyData.status || verifyData.data.status !== 'success') {
+      /* charge status lives at data.status; transaction status at data.data.status */
+      const txStatus = isCharge ? verifyData.data?.status : verifyData.data?.data?.status
+
+      if (!verifyData.status || txStatus !== 'success') {
         return new Response(JSON.stringify({ error: 'Payment not verified', paystack: verifyData }), {
           status: 402,
           headers: { 'Content-Type': 'application/json', ...corsHeaders() },
@@ -88,6 +105,14 @@ export async function POST(req) {
       /* amount is in kobo/cents — compare with Paystack */
       if (verifyData.data.amount !== amount) {
         return new Response(JSON.stringify({ error: 'Amount mismatch' }), {
+          status: 409,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+        })
+      }
+
+      /* currency must match the requested currency */
+      if (verifyData.data.currency !== currency) {
+        return new Response(JSON.stringify({ error: 'Currency mismatch' }), {
           status: 409,
           headers: { 'Content-Type': 'application/json', ...corsHeaders() },
         })
